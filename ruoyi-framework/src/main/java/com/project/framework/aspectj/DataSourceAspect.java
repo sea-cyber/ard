@@ -27,11 +27,11 @@ public class DataSourceAspect
 {
     protected Logger logger = LoggerFactory.getLogger(getClass());
 
-    @Pointcut("@annotation(com.ruoyi.common.annotation.DataSource)"
-            + "|| @within(com.ruoyi.common.annotation.DataSource)")
+    @Pointcut("@annotation(com.project.common.annotation.DataSource)"
+            + "|| @within(com.project.common.annotation.DataSource)")
     public void dsPointCut()
     {
-
+        
     }
 
     @Around("dsPointCut()")
