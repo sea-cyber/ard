@@ -21,7 +21,9 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation. *;
 import javax.validation.Valid;
 import java.util.List;
-
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 /**
  * TIF数据检索控制器
  * 
@@ -231,23 +233,22 @@ public class TifRetrievalController extends BaseController {
         // 3. 根据采集时间范围筛选
         if (request.getTimeRange() != null && request.getTimeRange().getDateRange() != null 
             && request.getTimeRange().getDateRange().size() >= 2) {
-            String startTime = request.getTimeRange().getDateRange().get(0);
-            String endTime = request.getTimeRange().getDateRange().get(1);
-            
-            logger.info("处理时间范围筛选条件: start={}, end={}", startTime, endTime);
-            
-            if (StringUtils.isNotEmpty(startTime)) {
-                // 处理日期格式，添加时间部分
-                String startDateTime = startTime + " 00:00:00";
-                queryWrapper.ge("acquisition_time", startDateTime);
-                logger.info("应用开始时间筛选: {}", startDateTime);
-            }
-            if (StringUtils.isNotEmpty(endTime)) {
-                // 处理日期格式，添加时间部分
-                String endDateTime = endTime + " 23:59:59";
-                queryWrapper.le("acquisition_time", endDateTime);
-                logger.info("应用结束时间筛选: {}", endDateTime);
-            }
+           String startStr = request.getTimeRange().getDateRange().get(0);
+String endStr = request.getTimeRange().getDateRange().get(1);
+
+if (StringUtils.isNotEmpty(startStr)) {
+    String s = startStr.trim().replace('/', '-').replace('.', '-'); // 标准化分隔符
+    LocalDate d = LocalDate.parse(s); // 默认按 yyyy-MM-dd 解析
+    LocalDateTime startDt = d.atStartOfDay();
+    queryWrapper.ge("acquisition_time", startDt); // 传 LocalDateTime，不传字符串
+}
+
+if (StringUtils.isNotEmpty(endStr)) {
+    String s = endStr.trim().replace('/', '-').replace('.', '-');
+    LocalDate d = LocalDate.parse(s);
+    LocalDateTime endDt = d.atTime(LocalTime.MAX); // 23:59:59.999999999
+    queryWrapper.le("acquisition_time", endDt);
+}
         } else {
             logger.info("没有时间范围筛选条件");
         }

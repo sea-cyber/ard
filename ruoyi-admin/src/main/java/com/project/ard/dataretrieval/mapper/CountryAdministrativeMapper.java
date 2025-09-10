@@ -18,18 +18,23 @@ public interface CountryAdministrativeMapper extends BaseMapper<CountryAdministr
     /**
      * 根据代码查询行政区划
      */
-    @Select("SELECT id, name, code, ST_AsText(geom) as geom FROM country_administrative WHERE code = #{code}")
+    @Select("SELECT id, name, code, ST_AsGeoJSON(geom) as geom FROM country_administrative WHERE code = #{code}")
     CountryAdministrative selectByCode(String code);
+    /**
+     * 根据名称查询行政区划
+     */
+    @Select("SELECT id, name, code, ST_AsGeoJSON(geom) as geom FROM country_administrative WHERE name = #{name}")
+    CountryAdministrative selectByName(String name);
 
     /**
      * 根据代码模糊查询行政区划列表
      */
-    @Select("SELECT id, name, code, ST_AsText(geom) as geom FROM country_administrative WHERE code LIKE CONCAT('%', #{code}, '%')")
+    @Select("SELECT id, name, code, ST_AsGeoJSON(geom) as geom FROM country_administrative WHERE code LIKE CONCAT('%', #{code}, '%')")
     List<CountryAdministrative> selectByCodeLike(String code);
 
     /**
      * 根据名称模糊查询行政区划列表
      */
-    @Select("SELECT id, name, code, ST_AsText(geom) as geom FROM country_administrative WHERE name LIKE CONCAT('%', #{name}, '%')")
+    @Select("SELECT id, name, code, ST_AsGeoJSON(geom) as geom FROM country_administrative WHERE name LIKE CONCAT('%', #{name}, '%')")
     List<CountryAdministrative> selectByNameLike(String name);
 }

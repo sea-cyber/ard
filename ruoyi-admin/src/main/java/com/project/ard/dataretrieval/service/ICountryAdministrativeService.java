@@ -11,12 +11,11 @@ import java.util.List;
  * @author ard
  */
 public interface ICountryAdministrativeService extends IService<CountryAdministrative> {
-
     /**
      * 根据代码查询行政区划
      */
     CountryAdministrative selectByCode(String code);
-
+    CountryAdministrative selectByName(String name);
     /**
      * 根据代码模糊查询行政区划列表
      */
