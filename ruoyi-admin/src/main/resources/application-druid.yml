@@ -6,7 +6,7 @@ spring:
         druid:
             # 主库数据源
             master:
-                url: jdbc:postgresql://localhost:5432/ARD_CUBE
+                url: jdbc:postgresql://localhost:5433/ARD_CUBE
                 username: postgres
                 password: YH1223725
             # 从库数据源

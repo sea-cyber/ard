@@ -20,6 +20,10 @@ public class CountryAdministrativeServiceImpl extends ServiceImpl<CountryAdminis
     public CountryAdministrative selectByCode(String code) {
         return baseMapper.selectByCode(code);
     }
+    @Override
+    public CountryAdministrative selectByName(String name) {
+        return baseMapper.selectByName(name);
+    }
 
     @Override
     public List<CountryAdministrative> selectByCodeLike(String code) {
