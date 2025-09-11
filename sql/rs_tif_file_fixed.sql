@@ -38,3 +38,4 @@ ALTER TABLE "public"."rs_tif_file" ADD CONSTRAINT "rs_tif_file_pkey" PRIMARY KEY
 INSERT INTO "public"."rs_tif_file" VALUES 
 (1, 1001, 'test_file_001.tif', '/data/tif/test_file_001.tif', 'LANDSAT8', 'OLI', 'L1TP', '2024-01-15 10:30:00', '2024-01-15 11:00:00', 15.5, 12345, 120, 35, '/preview/test_file_001.jpg', 1, 1, 1000, ST_GeomFromText('POLYGON((116.0 39.0, 117.0 39.0, 117.0 40.0, 116.0 40.0, 116.0 39.0))'), NULL, NULL),
 (2, 1002, 'test_file_002.tif', '/data/tif/test_file_002.tif', 'SENTINEL2', 'MSI', 'L1C', '2024-01-16 14:20:00', '2024-01-16 14:50:00', 8.2, 12346, 121, 36, '/preview/test_file_002.jpg', 0, 1, 2000, ST_GeomFromText('POLYGON((116.5 39.5, 117.5 39.5, 117.5 40.5, 116.5 40.5, 116.5 39.5))'), NULL, NULL);
+

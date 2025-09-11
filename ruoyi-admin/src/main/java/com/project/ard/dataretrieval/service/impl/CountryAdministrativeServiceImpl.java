@@ -31,3 +31,4 @@ public class CountryAdministrativeServiceImpl extends ServiceImpl<CountryAdminis
         return baseMapper.selectByNameLike(name);
     }
 }
+
