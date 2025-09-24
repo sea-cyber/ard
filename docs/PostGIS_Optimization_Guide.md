@@ -177,3 +177,4 @@ SET enable_seqscan = off;
 2. 使用LIMIT限制结果集
 3. 优化查询条件
 4. 增加数据库内存配置
+

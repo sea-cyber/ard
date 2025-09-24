@@ -41,3 +41,4 @@ public interface ITifRetrievalService {
      */
     List<String> getProductTypeList();
 }
+

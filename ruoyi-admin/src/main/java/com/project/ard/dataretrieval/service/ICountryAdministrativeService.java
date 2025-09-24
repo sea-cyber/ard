@@ -26,3 +26,4 @@ public interface ICountryAdministrativeService extends IService<CountryAdministr
      */
     List<CountryAdministrative> selectByNameLike(String name);
 }
+
