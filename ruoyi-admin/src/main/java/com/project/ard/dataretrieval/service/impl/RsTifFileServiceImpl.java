@@ -45,4 +45,9 @@ public class RsTifFileServiceImpl extends ServiceImpl<RsTifFileMapper, RsTifFile
     public List<RsTifFile> selectBySpatialWithin(String geoJson) {
         return baseMapper.selectBySpatialWithin(geoJson);
     }
+
+    @Override
+    public RsTifFile getByIdWithGeoJSON(Long id) {
+        return baseMapper.selectByIdWithGeoJSON(id);
+    }
 }

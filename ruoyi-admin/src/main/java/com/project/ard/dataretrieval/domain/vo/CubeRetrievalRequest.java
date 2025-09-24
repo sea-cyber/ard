@@ -3,37 +3,36 @@ package com.project.ard.dataretrieval.domain.vo;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
-import javax.validation.constraints.NotNull;
 import java.util.List;
 
 /**
- * TIF数据检索请求参数
+ * 立方体数据检索请求参数
  * 
- * @author ard
+ * @author project
  */
-@ApiModel("TIF数据检索请求参数")
-public class TifRetrievalRequest {
+@ApiModel("立方体数据检索请求参数")
+public class CubeRetrievalRequest {
 
     @ApiModelProperty("区域信息")
-    @NotNull(message = "区域信息不能为空")
     private Region region;
 
     @ApiModelProperty("时间范围")
-    @NotNull(message = "时间范围不能为空")
     private TimeRange timeRange;
-
-    @ApiModelProperty("云量信息")
-    private CloudAmount cloudAmount;
-
-    @ApiModelProperty("数据类型")
-    @NotNull(message = "数据类型不能为空")
-    private DataType dataType;
 
     @ApiModelProperty("边界信息")
     private Boundary boundary;
 
     @ApiModelProperty("分页信息")
     private PageInfo page;
+
+    @ApiModelProperty("立方体名称")
+    private String cubeName;
+
+    @ApiModelProperty("Path编码")
+    private String pathCode;
+
+    @ApiModelProperty("Row编码")
+    private String rowCode;
 
     public Region getRegion() {
         return region;
@@ -51,22 +50,6 @@ public class TifRetrievalRequest {
         this.timeRange = timeRange;
     }
 
-    public CloudAmount getCloudAmount() {
-        return cloudAmount;
-    }
-
-    public void setCloudAmount(CloudAmount cloudAmount) {
-        this.cloudAmount = cloudAmount;
-    }
-
-    public DataType getDataType() {
-        return dataType;
-    }
-
-    public void setDataType(DataType dataType) {
-        this.dataType = dataType;
-    }
-
     public Boundary getBoundary() {
         return boundary;
     }
@@ -81,6 +64,30 @@ public class TifRetrievalRequest {
 
     public void setPage(PageInfo page) {
         this.page = page;
+    }
+
+    public String getCubeName() {
+        return cubeName;
+    }
+
+    public void setCubeName(String cubeName) {
+        this.cubeName = cubeName;
+    }
+
+    public String getPathCode() {
+        return pathCode;
+    }
+
+    public void setPathCode(String pathCode) {
+        this.pathCode = pathCode;
+    }
+
+    public String getRowCode() {
+        return rowCode;
+    }
+
+    public void setRowCode(String rowCode) {
+        this.rowCode = rowCode;
     }
 
     /**
@@ -158,134 +165,6 @@ public class TifRetrievalRequest {
 
         public void setQuickRange(String quickRange) {
             this.quickRange = quickRange;
-        }
-    }
-
-    /**
-     * 云量信息
-     */
-    @ApiModel("云量信息")
-    public static class CloudAmount {
-        @ApiModelProperty("最小云量")
-        private String min;
-
-        @ApiModelProperty("最大云量")
-        private String max;
-
-        @ApiModelProperty("云量范围")
-        private List<Integer> range;
-
-        public String getMin() {
-            return min;
-        }
-
-        public void setMin(String min) {
-            this.min = min;
-        }
-
-        public String getMax() {
-            return max;
-        }
-
-        public void setMax(String max) {
-            this.max = max;
-        }
-
-        public List<Integer> getRange() {
-            return range;
-        }
-
-        public void setRange(List<Integer> range) {
-            this.range = range;
-        }
-    }
-
-    /**
-     * 数据类型
-     */
-    @ApiModel("数据类型")
-    public static class DataType {
-        @ApiModelProperty("数据类型")
-        private String type;
-
-        @ApiModelProperty("卫星列表")
-        private List<Satellite> satellites;
-
-        public String getType() {
-            return type;
-        }
-
-        public void setType(String type) {
-            this.type = type;
-        }
-
-        public List<Satellite> getSatellites() {
-            return satellites;
-        }
-
-        public void setSatellites(List<Satellite> satellites) {
-            this.satellites = satellites;
-        }
-    }
-
-    /**
-     * 卫星信息
-     */
-    @ApiModel("卫星信息")
-    public static class Satellite {
-        @ApiModelProperty("卫星名称")
-        private String name;
-
-        @ApiModelProperty("卫星代码")
-        private String code;
-
-        @ApiModelProperty("卫星标识")
-        private String satellite;
-
-        @ApiModelProperty("传感器列表")
-        private List<String> sensors;
-
-        @ApiModelProperty("是否选中")
-        private Boolean selected;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getCode() {
-            return code;
-        }
-
-        public void setCode(String code) {
-            this.code = code;
-        }
-
-        public Boolean getSelected() {
-            return selected;
-        }
-
-        public void setSelected(Boolean selected) {
-            this.selected = selected;
-        }
-
-        public String getSatellite() {
-            return satellite;
-        }
-
-        public void setSatellite(String satellite) {
-            this.satellite = satellite;
-        }
-
-        public List<String> getSensors() {
-            return sensors;
-        }
-
-        public void setSensors(List<String> sensors) {
-            this.sensors = sensors;
         }
     }
 
@@ -437,3 +316,7 @@ public class TifRetrievalRequest {
         }
     }
 }
+
+
+
+

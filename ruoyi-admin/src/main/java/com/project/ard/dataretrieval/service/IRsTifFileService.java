@@ -41,4 +41,9 @@ public interface IRsTifFileService extends IService<RsTifFile> {
      * 根据空间被包含查询文件列表
      */
     List<RsTifFile> selectBySpatialWithin(String geoJson);
+
+    /**
+     * 根据ID查询文件，并将boundary字段转换为GeoJSON格式
+     */
+    RsTifFile getByIdWithGeoJSON(Long id);
 }

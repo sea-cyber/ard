@@ -16,3 +16,14 @@ public interface IProvinceAdministrativeService extends IService<ProvinceAdminis
 
 
 
+
+
+
+
+
+
+
+
+
+
+

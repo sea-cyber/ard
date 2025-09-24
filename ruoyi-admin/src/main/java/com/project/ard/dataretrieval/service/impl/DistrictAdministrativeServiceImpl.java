@@ -37,3 +37,14 @@ public class DistrictAdministrativeServiceImpl extends ServiceImpl<DistrictAdmin
 
 
 
+
+
+
+
+
+
+
+
+
+
+

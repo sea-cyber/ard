@@ -3,16 +3,15 @@ package com.project.ard.dataretrieval.domain.vo;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
-import java.util.List;
+import java.time.LocalTime;
 
 /**
- * TIF数据检索响应VO
+ * 立方体数据检索响应VO
  * 
  * @author project
  */
 @Data
-public class TifRetrievalResponse {
+public class CubeRetrievalResponse {
     
     /**
      * 数据ID
@@ -42,7 +41,7 @@ public class TifRetrievalResponse {
      * 创建时间
      */
     @JsonProperty("createTime")
-    private OffsetDateTime createTime;
+    private LocalTime createTime;
     
     /**
      * 数据类型
@@ -75,21 +74,8 @@ public class TifRetrievalResponse {
     private String rowCode;
     
     /**
-     * 边界信息内部类 (用于前端显示)
+     * 时间范围
      */
-    @Data
-    public static class BoundaryInfo {
-        
-        /**
-         * 几何类型
-         */
-        @JsonProperty("type")
-        private String type;
-        
-        /**
-         * 坐标数组
-         */
-        @JsonProperty("coordinates")
-        private List<List<List<Double>>> coordinates;
-    }
+    @JsonProperty("timeRange")
+    private String timeRange;
 }

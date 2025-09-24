@@ -16,3 +16,14 @@ public interface IDistrictAdministrativeService extends IService<DistrictAdminis
 
 
 
+
+
+
+
+
+
+
+
+
+
+

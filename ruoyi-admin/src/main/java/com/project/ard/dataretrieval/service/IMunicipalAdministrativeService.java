@@ -16,3 +16,14 @@ public interface IMunicipalAdministrativeService extends IService<MunicipalAdmin
 
 
 
+
+
+
+
+
+
+
+
+
+
+
