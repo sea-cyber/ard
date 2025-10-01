@@ -19,6 +19,6 @@ public interface CubeMapper extends BaseMapper<Cube> {
      * @param id 立方体ID
      * @return 立方体数据
      */
-    @Select("SELECT id, cube_name, create_user, ST_AsGeoJSON(boundary) as boundary, create_time::time, data_type, data_describe, compression_algorithm, path_code, row_code, time_range FROM cube WHERE id = #{id}")
+    @Select("SELECT id, cube_name, create_user, ST_AsGeoJSON(boundary) as boundary, create_time, data_type, data_describe, compression_algorithm, path_code, row_code, time_range FROM cube WHERE id = #{id}")
     Cube selectByIdWithGeoJSON(Long id);
 }

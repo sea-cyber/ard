@@ -13,6 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -124,18 +128,37 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
         
         // 注意：立方体查询不需要数据类型筛选，因为立方体本身就是数据存储格式
         
-        // 根据时间范围筛选 - 使用create_time字段
+        // 根据时间范围筛选 - 使用time_range字段进行交集查询
         if (request.getTimeRange() != null && request.getTimeRange().getDateRange() != null) {
             List<String> dateRange = request.getTimeRange().getDateRange();
             if (dateRange.size() >= 2) {
-                String beginTime = dateRange.get(0);
-                String endTime = dateRange.get(1);
+                String beginTimeStr = dateRange.get(0);
+                String endTimeStr = dateRange.get(1);
                 
-                if (beginTime != null && !beginTime.trim().isEmpty() && endTime != null && !endTime.trim().isEmpty()) {
-                    // 使用create_time字段进行时间范围筛选
-                    queryWrapper.ge("create_time", beginTime);
-                    queryWrapper.le("create_time", endTime);
-                    log.info("应用时间范围筛选: {} 到 {}", beginTime, endTime);
+                if (beginTimeStr != null && !beginTimeStr.trim().isEmpty() && endTimeStr != null && !endTimeStr.trim().isEmpty()) {
+                    try {
+                        // 解析前端传来的日期字符串格式 "2025/08/28"
+                        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+                        
+                        // 转换为LocalDate，然后转换为LocalDateTime
+                        LocalDate beginDate = LocalDate.parse(beginTimeStr.trim(), inputFormatter);
+                        LocalDate endDate = LocalDate.parse(endTimeStr.trim(), inputFormatter);
+                        
+                        // 转换为LocalDateTime，开始时间设为00:00:00，结束时间设为23:59:59
+                        LocalDateTime beginTime = beginDate.atStartOfDay();
+                        LocalDateTime endTime = endDate.atTime(LocalTime.MAX);
+                        
+                        // 使用PostgreSQL的tstzrange交集查询
+                        // 查询条件：time_range字段与查询时间范围有交集
+                        // 使用&&操作符检查两个时间范围是否有交集
+                        queryWrapper.apply("time_range && tstzrange({0}::timestamptz, {1}::timestamptz, '[]')", 
+                            beginTime.toString(), endTime.toString());
+                        
+                        log.info("应用时间范围交集查询: {} 到 {}", beginTime, endTime);
+                    } catch (Exception e) {
+                        log.error("时间范围解析失败: {} 到 {}, 错误: {}", beginTimeStr, endTimeStr, e.getMessage());
+                        log.info("跳过时间范围筛选");
+                    }
                 } else {
                     log.info("时间范围不完整，跳过时间筛选");
                 }

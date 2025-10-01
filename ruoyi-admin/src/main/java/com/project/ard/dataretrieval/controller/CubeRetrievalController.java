@@ -35,27 +35,34 @@ public class CubeRetrievalController extends BaseController {
         try {
             logger.info("收到立方体数据搜索请求: {}", request);
             logger.info("请求参数类型: {}", request.getClass().getName());
-            
+
             // 验证请求参数
             if (request == null) {
                 logger.warn("请求参数为空");
                 return getDataTable(new ArrayList<>());
             }
-            
+
             // 使用真实数据库查询
             IPage<CubeRetrievalResponse> pageResult = cubeService.searchCubeDataPage(request);
+
+            logger.info("搜索完成，返回 {} 条数据，总计 {} 条",
+                    pageResult.getRecords().size(), pageResult.getTotal());
+
+            // 创建TableDataInfo并正确设置total
+            TableDataInfo tableDataInfo = new TableDataInfo();
+            tableDataInfo.setCode(200); // HttpStatus.SUCCESS
+            tableDataInfo.setMsg("查询成功");
+            tableDataInfo.setRows(pageResult.getRecords());
+            tableDataInfo.setTotal(pageResult.getTotal()); // 使用分页查询的真实total
             
-            logger.info("搜索完成，返回 {} 条数据，总计 {} 条", 
-                pageResult.getRecords().size(), pageResult.getTotal());
-            
-            return getDataTable(pageResult.getRecords());
-            
+            return tableDataInfo;
+
         } catch (Exception e) {
             logger.error("立方体数据搜索失败", e);
-            
-            // 如果数据库查询失败，返回模拟数据
-            List<CubeRetrievalResponse> mockResults = simulateDataQuery(request);
-            return getDataTable(mockResults);
+            // 异常时返回空列表，不返回模拟数据
+            return getDataTable(new ArrayList<>());
+            // 若需要明确提示错误，可自定义返回结构（需结合TableDataInfo的设计）
+            // 例如：return TableDataInfo.error("数据搜索失败，请稍后重试");
         }
     }
     
