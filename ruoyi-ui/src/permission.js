@@ -17,17 +17,9 @@ const isWhiteList = (path) => {
 
 router.beforeEach((to, from, next) => {
   NProgress.start()
-  
-  // 暂时禁用登录验证，直接允许所有页面访问
-  to.meta.title && store.dispatch('settings/setTitle', to.meta.title)
-  next()
-  NProgress.done()
-  
-  // 原始登录验证代码（已注释）
-  /*
   if (getToken()) {
     to.meta.title && store.dispatch('settings/setTitle', to.meta.title)
-    // has token
+    /* has token*/
     if (to.path === '/login') {
       next({ path: '/' })
       NProgress.done()
@@ -64,7 +56,6 @@ router.beforeEach((to, from, next) => {
       NProgress.done()
     }
   }
-  */
 })
 
 router.afterEach(() => {
