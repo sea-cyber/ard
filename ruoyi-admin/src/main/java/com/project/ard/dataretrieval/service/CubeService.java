@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.project.ard.dataretrieval.domain.Cube;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalRequest;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalResponse;
+import com.project.ard.dataretrieval.domain.vo.CubeDetailResponse;
 
 import java.util.List;
 
@@ -30,4 +31,12 @@ public interface CubeService extends IService<Cube> {
      * @return 分页查询结果
      */
     IPage<CubeRetrievalResponse> searchCubeDataPage(CubeRetrievalRequest request);
+    
+    /**
+     * 根据立方体ID获取立方体详情，包含切片数据
+     * 
+     * @param cubeId 立方体ID
+     * @return 立方体详情
+     */
+    CubeDetailResponse getCubeDetail(String cubeId);
 }

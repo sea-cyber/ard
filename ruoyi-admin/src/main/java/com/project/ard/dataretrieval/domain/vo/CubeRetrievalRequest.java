@@ -28,11 +28,6 @@ public class CubeRetrievalRequest {
     @ApiModelProperty("立方体名称")
     private String cubeName;
 
-    @ApiModelProperty("Path编码")
-    private String pathCode;
-
-    @ApiModelProperty("Row编码")
-    private String rowCode;
 
     public Region getRegion() {
         return region;
@@ -74,21 +69,6 @@ public class CubeRetrievalRequest {
         this.cubeName = cubeName;
     }
 
-    public String getPathCode() {
-        return pathCode;
-    }
-
-    public void setPathCode(String pathCode) {
-        this.pathCode = pathCode;
-    }
-
-    public String getRowCode() {
-        return rowCode;
-    }
-
-    public void setRowCode(String rowCode) {
-        this.rowCode = rowCode;
-    }
 
     /**
      * 区域信息

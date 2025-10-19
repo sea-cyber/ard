@@ -1,175 +1,173 @@
-package com.project.ard.dataretrieval.domain;
+package com.project.ard.dataretrieval.domain.vo;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import org.apache.ibatis.type.JdbcType;
-import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
- * 立方体数据实体类
+ * 立方体详情响应VO
  * 
  * @author project
  */
 @Data
-@EqualsAndHashCode(callSuper = false)
-@TableName("cube_grid_info")
-public class Cube {
+public class CubeDetailResponse {
     
     /**
      * 立方体ID
      */
-    @TableId(value = "cube_id", type = IdType.INPUT)
+    @JsonProperty("cubeId")
     private String cubeId;
     
     /**
      * 格网ID
      */
-    @TableField("grid_id")
+    @JsonProperty("gridId")
     private String gridId;
     
     /**
      * 数据密级
      */
-    @TableField("secretlevel")
+    @JsonProperty("secretLevel")
     private String secretLevel;
     
     /**
      * 立方体描述
      */
-    @TableField("description")
+    @JsonProperty("description")
     private String description;
     
     /**
      * 省份
      */
-    @TableField("province")
+    @JsonProperty("province")
     private String province;
     
     /**
      * 城市
      */
-    @TableField("city")
+    @JsonProperty("city")
     private String city;
     
     /**
      * 县区
      */
-    @TableField("county")
+    @JsonProperty("county")
     private String county;
     
     /**
      * 城市区域
      */
-    @TableField("city_district")
+    @JsonProperty("cityDistrict")
     private String cityDistrict;
     
     /**
      * EPSG编码
      */
-    @TableField("epsg")
+    @JsonProperty("epsg")
     private Integer epsg;
     
     /**
-     * 边界几何信息 (PostGIS geometry类型)
+     * 边界信息 (GeoJSON格式)
      */
-    @TableField("bbox")
-    private String bbox;
+    @JsonProperty("boundary")
+    private String boundary;
     
     /**
      * 格网类型
      */
-    @TableField("grid_type")
+    @JsonProperty("gridType")
     private String gridType;
     
     /**
      * 创建机构
      */
-    @TableField("organization")
+    @JsonProperty("organization")
     private String organization;
     
     /**
      * 所属部门
      */
-    @TableField("department")
+    @JsonProperty("department")
     private String department;
     
     /**
      * 操作人员
      */
-    @TableField("operator")
+    @JsonProperty("operator")
     private String operator;
     
     /**
      * 联系人邮箱
      */
-    @TableField("email")
+    @JsonProperty("email")
     private String email;
     
     /**
      * 角色
      */
-    @TableField("role")
+    @JsonProperty("role")
     private String role;
     
     /**
      * 总文件数量
      */
-    @TableField("total_files")
+    @JsonProperty("totalFiles")
     private Integer totalFiles;
     
     /**
      * 原始数据文件数量
      */
-    @TableField("original_files")
+    @JsonProperty("originalFiles")
     private Integer originalFiles;
     
     /**
      * 衍生数据文件数量
      */
-    @TableField("derived_files")
+    @JsonProperty("derivedFiles")
     private Integer derivedFiles;
     
     /**
      * 覆盖的季节
      */
-    @TableField("seasons_covered")
+    @JsonProperty("seasonsCovered")
     private String[] seasonsCovered;
     
     /**
      * 时间跨度
      */
-    @TableField("time_span")
+    @JsonProperty("timeSpan")
     private String timeSpan;
     
     /**
      * 分辨率等级
      */
-    @TableField("resolution_level")
+    @JsonProperty("resolutionLevel")
     private String resolutionLevel;
     
     /**
      * 创建时间
      */
-    @TableField(value = "created", jdbcType = JdbcType.TIMESTAMP_WITH_TIMEZONE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonProperty("created")
     private OffsetDateTime created;
     
     /**
      * 更新时间
      */
-    @TableField(value = "updated", jdbcType = JdbcType.TIMESTAMP_WITH_TIMEZONE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonProperty("updated")
     private OffsetDateTime updated;
     
     /**
      * 创建者
      */
-    @TableField("created_by")
+    @JsonProperty("createdBy")
     private String createdBy;
+    
+    /**
+     * 切片数据列表
+     */
+    @JsonProperty("slices")
+    private List<CubeSliceResponse> slices;
 }
+

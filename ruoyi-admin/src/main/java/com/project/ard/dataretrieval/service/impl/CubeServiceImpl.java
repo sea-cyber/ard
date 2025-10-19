@@ -7,16 +7,15 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.project.ard.dataretrieval.domain.Cube;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalRequest;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalResponse;
+import com.project.ard.dataretrieval.domain.vo.CubeDetailResponse;
+import com.project.ard.dataretrieval.domain.vo.CubeSliceResponse;
 import com.project.ard.dataretrieval.mapper.CubeMapper;
 import com.project.ard.dataretrieval.service.CubeService;
+import com.project.ard.dataretrieval.service.CubeSliceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +30,9 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
     
     @Autowired
     private CubeMapper cubeMapper;
+    
+    @Autowired
+    private CubeSliceService cubeSliceService;
     
     @Override
     public List<CubeRetrievalResponse> searchCubeData(CubeRetrievalRequest request) {
@@ -102,76 +104,28 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
     private QueryWrapper<Cube> buildQueryWrapper(CubeRetrievalRequest request) {
         QueryWrapper<Cube> queryWrapper = new QueryWrapper<>();
         
-        // 根据立方体名称筛选
+        // 根据格网ID筛选
         if (request.getCubeName() != null && !request.getCubeName().trim().isEmpty()) {
-            queryWrapper.like("cube_name", request.getCubeName().trim());
-            log.info("应用立方体名称筛选: {}", request.getCubeName());
+            queryWrapper.like("grid_id", request.getCubeName().trim());
+            log.info("应用格网ID筛选: {}", request.getCubeName());
         } else {
-            log.info("立方体名称为空，跳过名称筛选");
+            log.info("格网ID为空，跳过名称筛选");
         }
         
-        // 根据Path编码筛选
-        if (request.getPathCode() != null && !request.getPathCode().trim().isEmpty()) {
-            queryWrapper.like("path_code", request.getPathCode().trim());
-            log.info("应用Path编码筛选: {}", request.getPathCode());
-        } else {
-            log.info("Path编码为空，跳过Path编码筛选");
-        }
-        
-        // 根据Row编码筛选
-        if (request.getRowCode() != null && !request.getRowCode().trim().isEmpty()) {
-            queryWrapper.like("row_code", request.getRowCode().trim());
-            log.info("应用Row编码筛选: {}", request.getRowCode());
-        } else {
-            log.info("Row编码为空，跳过Row编码筛选");
-        }
         
         // 注意：立方体查询不需要数据类型筛选，因为立方体本身就是数据存储格式
         
-        // 根据时间范围筛选 - 使用time_range字段进行交集查询
-        if (request.getTimeRange() != null && request.getTimeRange().getDateRange() != null) {
-            List<String> dateRange = request.getTimeRange().getDateRange();
-            if (dateRange.size() >= 2) {
-                String beginTimeStr = dateRange.get(0);
-                String endTimeStr = dateRange.get(1);
-                
-                if (beginTimeStr != null && !beginTimeStr.trim().isEmpty() && endTimeStr != null && !endTimeStr.trim().isEmpty()) {
-                    try {
-                        // 解析前端传来的日期字符串格式 "2025/08/28"
-                        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
-                        
-                        // 转换为LocalDate，然后转换为LocalDateTime
-                        LocalDate beginDate = LocalDate.parse(beginTimeStr.trim(), inputFormatter);
-                        LocalDate endDate = LocalDate.parse(endTimeStr.trim(), inputFormatter);
-                        
-                        // 转换为LocalDateTime，开始时间设为00:00:00，结束时间设为23:59:59
-                        LocalDateTime beginTime = beginDate.atStartOfDay();
-                        LocalDateTime endTime = endDate.atTime(LocalTime.MAX);
-                        
-                        // 使用PostgreSQL的tstzrange交集查询
-                        // 查询条件：time_range字段与查询时间范围有交集
-                        // 使用&&操作符检查两个时间范围是否有交集
-                        queryWrapper.apply("time_range && tstzrange({0}::timestamptz, {1}::timestamptz, '[]')", 
-                            beginTime.toString(), endTime.toString());
-                        
-                        log.info("应用时间范围交集查询: {} 到 {}", beginTime, endTime);
-                    } catch (Exception e) {
-                        log.error("时间范围解析失败: {} 到 {}, 错误: {}", beginTimeStr, endTimeStr, e.getMessage());
-                        log.info("跳过时间范围筛选");
-                    }
-                } else {
-                    log.info("时间范围不完整，跳过时间筛选");
-                }
-            } else {
-                log.info("时间范围为空，跳过时间筛选");
-            }
+        // 注意：Cube表没有time_range字段，跳过时间范围筛选
+        if (request.getTimeRange() != null) {
+            log.info("Cube表没有time_range字段，跳过时间范围筛选");
         } else {
             log.info("没有提供时间范围，跳过时间筛选");
         }
         
-        // 注意：Cube表没有行政区字段，跳过行政区筛选
+        // 根据行政区筛选
         if (request.getRegion() != null) {
-            log.info("Cube表没有行政区字段，跳过行政区筛选");
+            log.info("Cube表有行政区字段，可以添加行政区筛选");
+            // 可以根据需要添加province、city、county字段的筛选
         } else {
             log.info("没有提供行政区信息，跳过行政区筛选");
         }
@@ -231,7 +185,7 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
                 // 使用PostGIS的ST_Intersects函数进行空间相交查询
                 // 方法1：将查询几何体从SRID 4326转换到SRID 4490
                 // 方法2：如果转换失败，则强制设置两个几何体的SRID为0（无SRID）进行比较
-                queryWrapper.apply("ST_Intersects(ST_SetSRID(boundary, 0), ST_SetSRID(ST_GeomFromGeoJSON({0}), 0))", geoJson);
+                queryWrapper.apply("ST_Intersects(ST_SetSRID(bbox, 0), ST_SetSRID(ST_GeomFromGeoJSON({0}), 0))", geoJson);
                 log.info("应用空间相交查询条件（强制设置SRID为0）");
             } else {
                 log.info("边界信息为空或无效，跳过空间筛选，返回所有数据");
@@ -241,7 +195,7 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
         }
         
         // 按创建时间倒序排列
-        queryWrapper.orderByDesc("create_time");
+        queryWrapper.orderByDesc("created");
         
         return queryWrapper;
     }
@@ -251,16 +205,30 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
      */
     private CubeRetrievalResponse convertToResponse(Cube cube) {
         CubeRetrievalResponse response = new CubeRetrievalResponse();
-        response.setId(cube.getId());
-        response.setCubeName(cube.getCubeName());
-        response.setCreateUser(cube.getCreateUser());
-        response.setCreateTime(cube.getCreateTime());
-        response.setDataType(cube.getDataType());
-        response.setDataDescribe(cube.getDataDescribe());
-        response.setCompressionAlgorithm(cube.getCompressionAlgorithm());
-        response.setPathCode(cube.getPathCode());
-        response.setRowCode(cube.getRowCode());
-        response.setTimeRange(cube.getTimeRange());
+        response.setCubeId(cube.getCubeId());
+        response.setGridId(cube.getGridId());
+        response.setSecretLevel(cube.getSecretLevel());
+        response.setDescription(cube.getDescription());
+        response.setProvince(cube.getProvince());
+        response.setCity(cube.getCity());
+        response.setCounty(cube.getCounty());
+        response.setCityDistrict(cube.getCityDistrict());
+        response.setEpsg(cube.getEpsg());
+        response.setGridType(cube.getGridType());
+        response.setOrganization(cube.getOrganization());
+        response.setDepartment(cube.getDepartment());
+        response.setOperator(cube.getOperator());
+        response.setEmail(cube.getEmail());
+        response.setRole(cube.getRole());
+        response.setTotalFiles(cube.getTotalFiles());
+        response.setOriginalFiles(cube.getOriginalFiles());
+        response.setDerivedFiles(cube.getDerivedFiles());
+        response.setSeasonsCovered(cube.getSeasonsCovered());
+        response.setTimeSpan(cube.getTimeSpan());
+        response.setResolutionLevel(cube.getResolutionLevel());
+        response.setCreated(cube.getCreated());
+        response.setUpdated(cube.getUpdated());
+        response.setCreatedBy(cube.getCreatedBy());
         
         // 处理边界数据 - 将PostGIS geometry字段转换为GeoJSON格式
         response.setBoundary(processBoundaryField(cube));
@@ -269,26 +237,92 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
     }
     
     /**
-     * 处理boundary字段，将PostGIS geometry格式转换为GeoJSON格式
+     * 处理bbox字段，将PostGIS geometry格式转换为GeoJSON格式
      */
     private String processBoundaryField(Cube cube) {
         try {
-            // 如果boundary字段不为空，通过数据库查询获取GeoJSON格式
-            if (cube.getBoundary() != null && !cube.getBoundary().trim().isEmpty()) {
-                // 通过数据库查询获取GeoJSON格式的boundary
-                Cube geoJsonCube = cubeMapper.selectByIdWithGeoJSON(cube.getId());
-                if (geoJsonCube != null && geoJsonCube.getBoundary() != null) {
-                    log.debug("已通过数据库转换boundary字段为GeoJSON格式: {}", cube.getId());
-                    return geoJsonCube.getBoundary();
+            // 如果bbox字段不为空，通过数据库查询获取GeoJSON格式
+            if (cube.getBbox() != null && !cube.getBbox().trim().isEmpty()) {
+                // 通过数据库查询获取GeoJSON格式的bbox
+                Cube geoJsonCube = cubeMapper.selectByIdWithGeoJSON(cube.getCubeId());
+                if (geoJsonCube != null && geoJsonCube.getBbox() != null) {
+                    log.debug("已通过数据库转换bbox字段为GeoJSON格式: {}", cube.getCubeId());
+                    return geoJsonCube.getBbox();
                 } else {
-                    log.warn("数据库查询boundary字段失败: {}", cube.getId());
-                    return cube.getBoundary(); // 返回原始值
+                    log.warn("数据库查询bbox字段失败: {}", cube.getCubeId());
+                    return cube.getBbox(); // 返回原始值
                 }
             }
-            return cube.getBoundary();
+            return cube.getBbox();
         } catch (Exception e) {
-            log.error("处理boundary字段时发生错误: {}", e.getMessage(), e);
-            return cube.getBoundary(); // 返回原始值
+            log.error("处理bbox字段时发生错误: {}", e.getMessage(), e);
+            return cube.getBbox(); // 返回原始值
         }
+    }
+    
+    @Override
+    public CubeDetailResponse getCubeDetail(String cubeId) {
+        try {
+            log.info("查询立方体详情，立方体ID: {}", cubeId);
+            
+            // 查询立方体基本信息
+            Cube cube = cubeMapper.selectByIdWithGeoJSON(cubeId);
+            if (cube == null) {
+                log.warn("未找到立方体数据，立方体ID: {}", cubeId);
+                return null;
+            }
+            
+            // 转换为详情响应对象
+            CubeDetailResponse response = convertToDetailResponse(cube);
+            
+            // 查询相关的切片数据
+            // 立方体ID是字符串格式，直接使用
+            List<CubeSliceResponse> slices = cubeSliceService.getSlicesByCubeId(cubeId);
+            response.setSlices(slices);
+            log.info("查询到 {} 条切片数据", slices.size());
+            
+            log.info("立方体详情查询完成");
+            return response;
+            
+        } catch (Exception e) {
+            log.error("查询立方体详情时发生错误: {}", e.getMessage(), e);
+            throw new RuntimeException("查询立方体详情失败", e);
+        }
+    }
+    
+    /**
+     * 将Cube实体转换为CubeDetailResponse
+     */
+    private CubeDetailResponse convertToDetailResponse(Cube cube) {
+        CubeDetailResponse response = new CubeDetailResponse();
+        response.setCubeId(cube.getCubeId());
+        response.setGridId(cube.getGridId());
+        response.setSecretLevel(cube.getSecretLevel());
+        response.setDescription(cube.getDescription());
+        response.setProvince(cube.getProvince());
+        response.setCity(cube.getCity());
+        response.setCounty(cube.getCounty());
+        response.setCityDistrict(cube.getCityDistrict());
+        response.setEpsg(cube.getEpsg());
+        response.setGridType(cube.getGridType());
+        response.setOrganization(cube.getOrganization());
+        response.setDepartment(cube.getDepartment());
+        response.setOperator(cube.getOperator());
+        response.setEmail(cube.getEmail());
+        response.setRole(cube.getRole());
+        response.setTotalFiles(cube.getTotalFiles());
+        response.setOriginalFiles(cube.getOriginalFiles());
+        response.setDerivedFiles(cube.getDerivedFiles());
+        response.setSeasonsCovered(cube.getSeasonsCovered());
+        response.setTimeSpan(cube.getTimeSpan());
+        response.setResolutionLevel(cube.getResolutionLevel());
+        response.setCreated(cube.getCreated());
+        response.setUpdated(cube.getUpdated());
+        response.setCreatedBy(cube.getCreatedBy());
+        
+        // 处理边界数据
+        response.setBoundary(cube.getBbox());
+        
+        return response;
     }
 }

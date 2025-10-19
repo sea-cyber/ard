@@ -16,7 +16,6 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -54,10 +53,10 @@ public class CountryAdministrativeController extends BaseController {
     private IDistrictAdministrativeService districtAdministrativeService;
 
     /**
-     * 根据代码查询国家行政区划
+     * 根据类型与代码查询行政区几何(GeoJSON)
+     * 行政区数据为公开数据,所有登录用户均可访问
      */
     @ApiOperation("根据类型与代码查询行政区几何(GeoJSON)")
-    @PreAuthorize("@ss.hasPermi('dataretrieval:country:query')")
     @PostMapping("/geometry/byType")
     public AjaxResult getGeometryByType(@RequestBody AdminGeometryRequest request) {
         if (request == null || request.getType() == null || request.getCode() == null) {
@@ -77,10 +76,10 @@ public class CountryAdministrativeController extends BaseController {
         }
     }
     /**
-     * 根据代码查询国家行政区划
+     * 根据名称查询国家行政区划
+     * 行政区数据为公开数据,所有登录用户均可访问
      */
     @ApiOperation("根据名称查询国家行政区划")
-    @PreAuthorize("@ss.hasPermi('dataretrieval:country:query')")
     @GetMapping("/geometry/name")
 //    AjaxResult
     public AjaxResult getByName(@ApiParam("行政区划代码") @RequestParam("name") String name) {
@@ -97,9 +96,9 @@ public class CountryAdministrativeController extends BaseController {
 
     /**
      * 根据regionId查询国家(country)
+     * 行政区数据为公开数据，所有登录用户均可访问
      */
     @ApiOperation("根据regionId查询国家(country)")
-    @PreAuthorize("@ss.hasPermi('dataretrieval:country:query')")
     @GetMapping("/region/country")
     public AjaxResult getCountryByRegionId(@ApiParam("regionId") @RequestParam("regionId") String regionId) {
         return success(countryService.selectByRegionId(regionId));
@@ -107,9 +106,9 @@ public class CountryAdministrativeController extends BaseController {
 
     /**
      * 根据regionId查询省(province)
+     * 行政区数据为公开数据,所有登录用户均可访问
      */
     @ApiOperation("根据regionId查询省(province)")
-    @PreAuthorize("@ss.hasPermi('dataretrieval:country:query')")
     @GetMapping("/region/province")
     public AjaxResult getProvinceByRegionId(@ApiParam("regionId") @RequestParam("regionId") String regionId) {
         // 返回该国家下所有省份列表
@@ -118,9 +117,9 @@ public class CountryAdministrativeController extends BaseController {
 
     /**
      * 根据regionId查询市(city)
+     * 行政区数据为公开数据,所有登录用户均可访问
      */
     @ApiOperation("根据regionId查询市(city)")
-    @PreAuthorize("@ss.hasPermi('dataretrieval:country:query')")
     @GetMapping("/region/city")
     public AjaxResult getCityByRegionId(@ApiParam("regionId") @RequestParam("regionId") String regionId) {
         // 返回该省份下所有城市列表
@@ -129,9 +128,9 @@ public class CountryAdministrativeController extends BaseController {
 
     /**
      * 根据regionId查询区县(district)
+     * 行政区数据为公开数据,所有登录用户均可访问
      */
     @ApiOperation("根据regionId查询区县(district)")
-    @PreAuthorize("@ss.hasPermi('dataretrieval:country:query')")
     @GetMapping("/region/district")
     public AjaxResult getDistrictByRegionId(@ApiParam("regionId") @RequestParam("regionId") String regionId) {
         // 返回该城市下所有区县列表

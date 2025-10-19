@@ -5,7 +5,10 @@ import com.project.common.core.controller.BaseController;
 import com.project.common.core.page.TableDataInfo;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalRequest;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalResponse;
+import com.project.ard.dataretrieval.domain.vo.CubeDetailResponse;
+import com.project.ard.dataretrieval.domain.vo.CubeSliceResponse;
 import com.project.ard.dataretrieval.service.CubeService;
+import com.project.ard.dataretrieval.service.CubeSliceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +26,9 @@ public class CubeRetrievalController extends BaseController {
 
     @Autowired
     private CubeService cubeService;
+    
+    @Autowired
+    private CubeSliceService cubeSliceService;
 
     /**
      * 搜索立方体数据
@@ -66,54 +72,81 @@ public class CubeRetrievalController extends BaseController {
         }
     }
     
+    
+    
     /**
-     * 模拟数据查询（备用方案）
+     * 获取立方体详情，包含切片数据
      * 
-     * @param request 搜索请求
-     * @return 模拟数据结果
+     * @param cubeId 立方体ID
+     * @return 立方体详情
      */
-    private List<CubeRetrievalResponse> simulateDataQuery(CubeRetrievalRequest request) {
-        List<CubeRetrievalResponse> results = new ArrayList<>();
-        
-        // 生成模拟立方体数据
-        for (int i = 1; i <= 5; i++) {
-            CubeRetrievalResponse response = new CubeRetrievalResponse();
-            response.setId((long) i);
-            response.setCubeName("模拟立方体_" + i);
-            response.setCreateUser("admin");
-            response.setDataType("CUBE");
-            response.setDataDescribe("模拟立方体数据描述");
-            response.setCompressionAlgorithm("LZW");
-            response.setPathCode("P" + String.format("%03d", i));
-            response.setRowCode("R" + String.format("%03d", i));
+    @GetMapping("/detail/{cubeId}")
+    public CubeDetailResponse getCubeDetail(@PathVariable String cubeId) {
+        try {
+            logger.info("收到立方体详情查询请求，立方体ID: {}", cubeId);
             
-            // 生成边界数据 (GeoJSON格式)
-            response.setBoundary(generateMockGeoJSON(i));
+            CubeDetailResponse detail = cubeService.getCubeDetail(cubeId);
+            if (detail == null) {
+                logger.warn("未找到立方体详情，立方体ID: {}", cubeId);
+                return null;
+            }
             
-            results.add(response);
+            logger.info("立方体详情查询成功，包含 {} 条切片数据", 
+                    detail.getSlices() != null ? detail.getSlices().size() : 0);
+            return detail;
+            
+        } catch (Exception e) {
+            logger.error("查询立方体详情失败，立方体ID: {}", cubeId, e);
+            throw new RuntimeException("查询立方体详情失败", e);
         }
-        
-        return results;
     }
     
     /**
-     * 生成模拟GeoJSON数据
+     * 获取切片详情
      * 
-     * @param index 索引
-     * @return GeoJSON字符串
+     * @param sliceId 切片ID
+     * @return 切片详情
      */
-    private String generateMockGeoJSON(int index) {
-        // 生成一个简单的矩形
-        double baseLon = 116.0 + index * 0.1;
-        double baseLat = 39.0 + index * 0.1;
-        
-        return String.format(
-            "{\"type\":\"Polygon\",\"coordinates\":[[[%.6f,%.6f],[%.6f,%.6f],[%.6f,%.6f],[%.6f,%.6f],[%.6f,%.6f]]]}",
-            baseLon, baseLat,
-            baseLon + 0.1, baseLat,
-            baseLon + 0.1, baseLat + 0.1,
-            baseLon, baseLat + 0.1,
-            baseLon, baseLat
-        );
+    @GetMapping("/slice/{sliceId}")
+    public CubeSliceResponse getSliceDetail(@PathVariable Integer sliceId) {
+        try {
+            logger.info("收到切片详情查询请求，切片ID: {}", sliceId);
+            
+            CubeSliceResponse slice = cubeSliceService.getSliceById(sliceId);
+            if (slice == null) {
+                logger.warn("未找到切片详情，切片ID: {}", sliceId);
+                return null;
+            }
+            
+            logger.info("切片详情查询成功，切片ID: {}", sliceId);
+            return slice;
+            
+        } catch (Exception e) {
+            logger.error("查询切片详情失败，切片ID: {}", sliceId, e);
+            throw new RuntimeException("查询切片详情失败", e);
+        }
+    }
+    
+    /**
+     * 根据立方体ID获取所有切片信息
+     * 
+     * @param cubeId 立方体ID
+     * @return 切片列表
+     */
+    @GetMapping("/slices/{cubeId}")
+    public List<CubeSliceResponse> getCubeSlices(@PathVariable String cubeId) {
+        try {
+            logger.info("收到立方体切片查询请求，立方体ID: {}", cubeId);
+            
+            // 立方体ID是字符串格式，直接使用
+            List<CubeSliceResponse> slices = cubeSliceService.getSlicesByCubeId(cubeId);
+            logger.info("立方体切片查询成功，立方体ID: {}, 切片数量: {}", cubeId, slices.size());
+            
+            return slices;
+            
+        } catch (Exception e) {
+            logger.error("查询立方体切片失败，立方体ID: {}", cubeId, e);
+            throw new RuntimeException("查询立方体切片失败", e);
+        }
     }
 }
