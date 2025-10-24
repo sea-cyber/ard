@@ -79,6 +79,15 @@
             <groupId>com.ruoyi</groupId>
             <artifactId>ruoyi-generator</artifactId>
         </dependency>
+        
+        <!-- GDAL Java绑定 -->
+        <dependency>
+            <groupId>org.gdal</groupId>
+            <artifactId>gdal</artifactId>
+            <version>3.11.3</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/gdal-3.11.3.jar</systemPath>
+        </dependency>
 
     </dependencies>
 

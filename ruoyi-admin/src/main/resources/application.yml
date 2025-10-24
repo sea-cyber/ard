@@ -37,6 +37,13 @@ logging:
     com.project: debug
     org.springframework: warn
 
+# 自定义ARD配置
+ard:
+  cube:
+    # 立方体根存储目录（按需修改，支持不同环境覆盖）
+    root-path: D:/GISER/ard/development/cubedata
+
+
 # 用户配置
 user:
   password:

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.ard.dataretrieval.mapper.CubeTaskStepMapper">
+    
+    <resultMap type="com.project.ard.dataretrieval.domain.CubeTaskStep" id="CubeTaskStepResult">
+        <result property="stepId"        column="step_id"        />
+        <result property="taskId"        column="task_id"        />
+        <result property="stepName"      column="step_name"      />
+        <result property="stepOrder"     column="step_order"     />
+        <result property="stepStatus"    column="step_status"    />
+        <result property="startTime"     column="start_time"     />
+        <result property="endTime"       column="end_time"       />
+        <result property="stepDesc"      column="step_desc"      />
+        <result property="errorDetails"  column="error_details"  />
+        <result property="cubeCount"     column="cube_count"     />
+        <result property="processingCenter" column="processing_center" />
+        <result property="created"       column="created"        />
+        <result property="updated"       column="updated"        />
+    </resultMap>
+
+    <sql id="selectCubeTaskStepVo">
+        select step_id, task_id, step_name, step_order, step_status, start_time, end_time, 
+               step_desc, error_details, cube_count, processing_center, created, updated 
+        from cube_task_step
+    </sql>
+
+    <select id="selectStepsByTaskId" parameterType="String" resultMap="CubeTaskStepResult">
+        <include refid="selectCubeTaskStepVo"/>
+        where task_id = #{taskId}
+        order by step_order
+    </select>
+
+    <select id="selectStepByTaskIdAndOrder" resultMap="CubeTaskStepResult">
+        <include refid="selectCubeTaskStepVo"/>
+        where task_id = #{taskId} and step_order = #{stepOrder}
+    </select>
+
+    <update id="updateStepStatus">
+        update cube_task_step
+        set step_status = #{stepStatus},
+            step_desc = #{stepDesc},
+            error_details = #{errorDetails},
+            updated = CURRENT_TIMESTAMP
+        where step_id = #{stepId}
+    </update>
+
+    <update id="updateStepStartTime">
+        update cube_task_step
+        set start_time = #{startTime},
+            updated = CURRENT_TIMESTAMP
+        where step_id = #{stepId}
+    </update>
+
+    <update id="updateStepEndTime">
+        update cube_task_step
+        set end_time = #{endTime},
+            updated = CURRENT_TIMESTAMP
+        where step_id = #{stepId}
+    </update>
+
+    <insert id="insert" parameterType="com.project.ard.dataretrieval.domain.CubeTaskStep">
+        insert into cube_task_step (
+            task_id, step_name, step_order, step_status, start_time, end_time, 
+            step_desc, error_details, cube_count, processing_center, created, updated
+        ) values (
+            #{taskId}, #{stepName}, #{stepOrder}, #{stepStatus}, #{startTime}, #{endTime},
+            #{stepDesc}, #{errorDetails}, #{cubeCount}, #{processingCenter}, #{created}, #{updated}
+        )
+    </insert>
+
+</mapper>

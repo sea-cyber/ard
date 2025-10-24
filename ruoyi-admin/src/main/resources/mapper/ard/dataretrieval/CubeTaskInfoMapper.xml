@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.ard.dataretrieval.mapper.CubeTaskInfoMapper">
+    
+    <resultMap type="com.project.ard.dataretrieval.domain.CubeTaskInfo" id="CubeTaskInfoResult">
+        <result property="taskId"           column="task_id"           />
+        <result property="taskName"         column="task_name"         />
+        <result property="taskDescription"  column="task_description"  />
+        <result property="taskType"         column="task_type"         />
+        <result property="userId"           column="user_id"           />
+        <result property="createdBy"        column="created_by"        />
+        <result property="created"          column="created"           />
+        <result property="updated"          column="updated"           />
+        <result property="timeStart"        column="time_start"        />
+        <result property="timeEnd"          column="time_end"          />
+        <result property="processingCenter" column="processing_center" />
+        <result property="outputResolution" column="output_resolution" />
+        <result property="outputFormat"     column="output_format"     />
+        <result property="workflowId"       column="workflow_id"       />
+        <result property="workflowName"     column="workflow_name"     />
+        <result property="workflowDescription" column="workflow_description" />
+        <result property="status"           column="status"            />
+        <result property="progress"         column="progress"          />
+        <result property="errorMessage"     column="error_message"     />
+        <result property="resultCount"      column="result_count"      />
+        <result property="resultDirectory"  column="result_directory"  />
+        <result property="completionTime"   column="completion_time"   />
+        <result property="priority"         column="priority"          />
+        <result property="estimatedDuration" column="estimated_duration" />
+        <result property="actualDuration"   column="actual_duration"   />
+        <result property="resourceUsage"    column="resource_usage"    />
+    </resultMap>
+
+    <sql id="selectCubeTaskInfoVo">
+        select task_id, task_name, task_description, task_type, user_id, created_by, created, updated, 
+               time_start, time_end, processing_center, output_resolution, output_format, 
+               workflow_id, workflow_name, workflow_description, status, progress, error_message, 
+               result_count, result_directory, completion_time, priority, estimated_duration, 
+               actual_duration, resource_usage 
+        from cube_task_info
+    </sql>
+
+    <select id="selectTasksByUserId" parameterType="Long" resultMap="CubeTaskInfoResult">
+        <include refid="selectCubeTaskInfoVo"/>
+        where user_id = #{userId}
+        order by created desc
+    </select>
+
+    <select id="selectTasksByStatus" parameterType="String" resultMap="CubeTaskInfoResult">
+        <include refid="selectCubeTaskInfoVo"/>
+        where status = #{status}
+        order by created desc
+    </select>
+
+    <select id="selectTasksByUserIdAndStatus" resultMap="CubeTaskInfoResult">
+        <include refid="selectCubeTaskInfoVo"/>
+        where user_id = #{userId} and status = #{status}
+        order by created desc
+    </select>
+
+    <update id="updateTaskStatus">
+        update cube_task_info 
+        set status = #{status},
+            progress = #{progress},
+            error_message = #{errorMessage},
+            updated = CURRENT_TIMESTAMP
+        where task_id = #{taskId}
+    </update>
+
+    <update id="updateTaskProgress">
+        update cube_task_info 
+        set progress = #{progress},
+            updated = CURRENT_TIMESTAMP
+        where task_id = #{taskId}
+    </update>
+
+    <update id="completeTask">
+        update cube_task_info 
+        set status = 'completed',
+            progress = 100,
+            result_count = #{resultCount},
+            result_directory = #{resultDirectory},
+            completion_time = CURRENT_TIMESTAMP,
+            updated = CURRENT_TIMESTAMP
+        where task_id = #{taskId}
+    </update>
+
+    <insert id="insert" parameterType="com.project.ard.dataretrieval.domain.CubeTaskInfo">
+        insert into cube_task_info (
+            task_id, task_name, task_description, task_type, user_id, created_by, created, updated,
+            time_start, time_end, processing_center, output_resolution, output_format,
+            workflow_id, workflow_name, workflow_description, status, progress, error_message,
+            result_count, result_directory, completion_time, priority, estimated_duration,
+            actual_duration, resource_usage
+        ) values (
+            #{taskId}, #{taskName}, #{taskDescription}, #{taskType}, #{userId}, #{createdBy}, #{created}, #{updated},
+            #{timeStart}, #{timeEnd}, #{processingCenter}, #{outputResolution}, #{outputFormat},
+            #{workflowId}, #{workflowName}, #{workflowDescription}, #{status}, #{progress}, #{errorMessage},
+            #{resultCount}, #{resultDirectory}, #{completionTime}, #{priority}, #{estimatedDuration},
+            #{actualDuration}, #{resourceUsage}
+        )
+    </insert>
+
+    <select id="selectById" parameterType="String" resultMap="CubeTaskInfoResult">
+        <include refid="selectCubeTaskInfoVo"/>
+        where task_id = #{taskId}
+    </select>
+
+</mapper>

@@ -1,0 +1,13 @@
+# 工作流类型映射配置
+workflow:
+  types:
+    mappings:
+      # 算法代码 -> 处理器类型
+      workflow_20231026_101522: ndvi_analysis
+      workflow_20231027_143045: land_cover_classification
+      workflow_20241119_160000: change_detection
+      workflow_20250820_110000: object_detection
+      
+      # 可以继续添加新的映射关系
+      # new_algorithm_code: new_processor_type
+

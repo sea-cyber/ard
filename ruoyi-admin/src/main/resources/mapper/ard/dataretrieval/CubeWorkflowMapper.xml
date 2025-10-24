@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.ard.dataretrieval.mapper.CubeWorkflowMapper">
+    
+    <resultMap type="com.project.ard.dataretrieval.entity.CubeWorkflow" id="CubeWorkflowResult">
+        <result property="workflowId"    column="workflow_id"    />
+        <result property="workflowName"    column="workflow_name"    />
+        <result property="userId"    column="user_id"    />
+        <result property="uploadTime"    column="upload_time"    />
+        <result property="description"    column="description"    />
+        <result property="category"    column="category"    />
+        <result property="architecture"    column="architecture"    />
+        <result property="version"    column="version"    />
+        <result property="isPublic"    column="is_public"    />
+        <result property="status"    column="status"    />
+        <result property="executorPath"    column="executor_path"    />
+        <result property="algorithmCode"    column="algorithm_code"    />
+    </resultMap>
+
+    <sql id="selectCubeWorkflowVo">
+        select workflow_id, workflow_name, user_id, upload_time, description, category, architecture, version, is_public, status, executor_path, algorithm_code from cube_workflow
+    </sql>
+
+    <select id="selectCubeWorkflowList" parameterType="com.project.ard.dataretrieval.entity.CubeWorkflow" resultMap="CubeWorkflowResult">
+        <include refid="selectCubeWorkflowVo"/>
+        <where>  
+            <if test="workflowName != null  and workflowName != ''"> and workflow_name like concat('%', #{workflowName}, '%')</if>
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="uploadTime != null "> and upload_time = #{uploadTime}</if>
+            <if test="description != null  and description != ''"> and description like concat('%', #{description}, '%')</if>
+            <if test="category != null  and category != ''"> and category = #{category}</if>
+            <if test="architecture != null  and architecture != ''"> and architecture = #{architecture}</if>
+            <if test="version != null  and version != ''"> and version = #{version}</if>
+            <if test="isPublic != null "> and is_public = #{isPublic}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+            <if test="executorPath != null  and executorPath != ''"> and executor_path like concat('%', #{executorPath}, '%')</if>
+            <if test="algorithmCode != null  and algorithmCode != ''"> and algorithm_code = #{algorithmCode}</if>
+        </where>
+        order by upload_time desc
+    </select>
+    
+    <select id="selectCubeWorkflowByWorkflowId" parameterType="String" resultMap="CubeWorkflowResult">
+        <include refid="selectCubeWorkflowVo"/>
+        where workflow_id = #{workflowId}
+    </select>
+
+    <select id="selectPublicCubeWorkflowList" parameterType="com.project.ard.dataretrieval.entity.CubeWorkflow" resultMap="CubeWorkflowResult">
+        <include refid="selectCubeWorkflowVo"/>
+        <where>  
+            is_public = true
+            <if test="status != null and status != ''"> and status = #{status}</if>
+            <if test="workflowName != null  and workflowName != ''"> and workflow_name like concat('%', #{workflowName}, '%')</if>
+            <if test="category != null  and category != ''"> and category = #{category}</if>
+            <if test="architecture != null  and architecture != ''"> and architecture = #{architecture}</if>
+            <if test="version != null  and version != ''"> and version = #{version}</if>
+        </where>
+        order by upload_time desc
+    </select>
+
+    <select id="selectAccessibleCubeWorkflowList" parameterType="com.project.ard.dataretrieval.entity.CubeWorkflow" resultMap="CubeWorkflowResult">
+        <include refid="selectCubeWorkflowVo"/>
+        <where>  
+            (is_public = true OR (is_public = false AND user_id = #{userId}))
+            <if test="status != null and status != ''"> and status = #{status}</if>
+            <if test="workflowName != null  and workflowName != ''"> and workflow_name like concat('%', #{workflowName}, '%')</if>
+            <if test="category != null  and category != ''"> and category = #{category}</if>
+            <if test="architecture != null  and architecture != ''"> and architecture = #{architecture}</if>
+            <if test="version != null  and version != ''"> and version = #{version}</if>
+        </where>
+        order by upload_time desc
+    </select>
+
+    <select id="selectCubeWorkflowListByUserId" parameterType="Long" resultMap="CubeWorkflowResult">
+        <include refid="selectCubeWorkflowVo"/>
+        where user_id = #{userId}
+        order by upload_time desc
+    </select>
+
+    <select id="selectCubeWorkflowListByCategory" parameterType="String" resultMap="CubeWorkflowResult">
+        <include refid="selectCubeWorkflowVo"/>
+        where category = #{category} and status = 'active'
+        order by upload_time desc
+    </select>
+
+    <select id="selectCubeWorkflowByAlgorithmCode" parameterType="String" resultMap="CubeWorkflowResult">
+        <include refid="selectCubeWorkflowVo"/>
+        where algorithm_code = #{algorithmCode}
+    </select>
+
+    <select id="checkAlgorithmCodeUnique" parameterType="String" resultType="int">
+        select count(1) from cube_workflow where algorithm_code = #{algorithmCode}
+    </select>
+        
+    <insert id="insertCubeWorkflow" parameterType="com.project.ard.dataretrieval.entity.CubeWorkflow" useGeneratedKeys="true" keyProperty="workflowId">
+        insert into cube_workflow
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="workflowName != null and workflowName != ''">workflow_name,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="uploadTime != null">upload_time,</if>
+            <if test="description != null">description,</if>
+            <if test="category != null and category != ''">category,</if>
+            <if test="architecture != null and architecture != ''">architecture,</if>
+            <if test="version != null">version,</if>
+            <if test="isPublic != null">is_public,</if>
+            <if test="status != null">status,</if>
+            <if test="executorPath != null">executor_path,</if>
+            <if test="algorithmCode != null and algorithmCode != ''">algorithm_code,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="workflowName != null and workflowName != ''">#{workflowName},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="uploadTime != null">#{uploadTime},</if>
+            <if test="description != null">#{description},</if>
+            <if test="category != null and category != ''">#{category},</if>
+            <if test="architecture != null and architecture != ''">#{architecture},</if>
+            <if test="version != null">#{version},</if>
+            <if test="isPublic != null">#{isPublic},</if>
+            <if test="status != null">#{status},</if>
+            <if test="executorPath != null">#{executorPath},</if>
+            <if test="algorithmCode != null and algorithmCode != ''">#{algorithmCode},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCubeWorkflow" parameterType="com.project.ard.dataretrieval.entity.CubeWorkflow">
+        update cube_workflow
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="workflowName != null and workflowName != ''">workflow_name = #{workflowName},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="uploadTime != null">upload_time = #{uploadTime},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="category != null and category != ''">category = #{category},</if>
+            <if test="architecture != null and architecture != ''">architecture = #{architecture},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="isPublic != null">is_public = #{isPublic},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="executorPath != null">executor_path = #{executorPath},</if>
+            <if test="algorithmCode != null and algorithmCode != ''">algorithm_code = #{algorithmCode},</if>
+        </trim>
+        where workflow_id = #{workflowId}
+    </update>
+
+    <delete id="deleteCubeWorkflowByWorkflowId" parameterType="String">
+        delete from cube_workflow where workflow_id = #{workflowId}
+    </delete>
+
+    <delete id="deleteCubeWorkflowByWorkflowIds" parameterType="String">
+        delete from cube_workflow where workflow_id in 
+        <foreach item="workflowId" collection="array" open="(" separator="," close=")">
+            #{workflowId}
+        </foreach>
+    </delete>
+</mapper>
