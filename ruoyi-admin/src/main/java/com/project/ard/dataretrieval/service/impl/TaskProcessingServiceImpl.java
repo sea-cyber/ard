@@ -47,7 +47,8 @@ public class TaskProcessingServiceImpl implements TaskProcessingService {
                     continue;
                 }
 
-                Path dir = Paths.get(cubeRootPath, cubeId, "raw", quarter);
+                // 使用配置的原始数据路径：ARD_CUB_GRIDT0_OFF_RAW/grid_id/quarter
+                Path dir = Paths.get(cubeRootPath, cubeId, quarter);
                 item.put("path", dir.toString());
                 try {
                     if (Files.exists(dir) && Files.isDirectory(dir)) {

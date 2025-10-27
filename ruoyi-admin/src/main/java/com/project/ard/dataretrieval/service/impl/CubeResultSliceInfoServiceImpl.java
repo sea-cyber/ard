@@ -122,4 +122,26 @@ public class CubeResultSliceInfoServiceImpl implements CubeResultSliceInfoServic
             return new java.util.ArrayList<>();
         }
     }
+    
+    @Override
+    public List<CubeResultSliceInfo> getResultSliceInfoByUserIdAndCubeId(Long userId, String cubeId) {
+        try {
+            logger.info("查询结果切片信息 - 用户ID: {}, 立方体ID: {}", userId, cubeId);
+            
+            // 使用MyBatis-Plus的查询方法
+            List<CubeResultSliceInfo> result = cubeResultSliceInfoMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<CubeResultSliceInfo>()
+                    .eq("user_id", userId)
+                    .eq("cube_id", cubeId)
+                    .orderByDesc("created")
+            );
+            
+            logger.info("查询到 {} 条结果切片信息", result.size());
+            return result;
+            
+        } catch (Exception e) {
+            logger.error("查询结果切片信息异常 - 用户ID: {}, 立方体ID: {}, 错误: {}", userId, cubeId, e.getMessage(), e);
+            return new java.util.ArrayList<>();
+        }
+    }
 }

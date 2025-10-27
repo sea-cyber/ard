@@ -4,6 +4,7 @@ import com.project.ard.dataretrieval.annotation.WorkflowType;
 import com.project.ard.dataretrieval.entity.CubeWorkflow;
 import com.project.ard.dataretrieval.service.SliceFileReaderService;
 import com.project.ard.dataretrieval.service.WorkflowProcessor;
+import com.project.ard.dataretrieval.config.UserDataConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,9 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
     
     @Autowired
     private SliceFileReaderService sliceFileReaderService;
+    
+    @Autowired
+    private UserDataConfig userDataConfig;
     
     @Autowired
     private com.project.ard.dataretrieval.service.CubeTaskStepService cubeTaskStepService;
@@ -93,10 +97,10 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
                     logger.info("解析切片信息 - 标识符: {}, 立方体: {}, 季度: {}", sliceFileName, cubeId, quarter);
                     
                     if (cubeId != null && quarter != null) {
-                        // 构建波段文件路径
-                        String basePath = "D:\\GISER\\ard\\development\\cubedata";
-                        String redBandFile = basePath + "\\" + cubeId + "\\raw\\" + quarter + "\\" + cubeId + "_" + quarter + "_B4.TIF";
-                        String nirBandFile = basePath + "\\" + cubeId + "\\raw\\" + quarter + "\\" + cubeId + "_" + quarter + "_B5.TIF";
+                        // 构建波段文件路径 - 使用配置的原始数据路径：ARD_CUB_GRIDT0_OFF_RAW/grid_id/quarter
+                        String basePath = "D:\\GISER\\ard\\development\\cubedata\\ARD_CUB_GRIDT0_OFF_RAW";
+                        String redBandFile = basePath + "\\" + cubeId + "\\" + quarter + "\\" + cubeId + "_" + quarter + "_B4.TIF";
+                        String nirBandFile = basePath + "\\" + cubeId + "\\" + quarter + "\\" + cubeId + "_" + quarter + "_B5.TIF";
                         
                         logger.info("红光波段文件: {}", redBandFile);
                         logger.info("近红外波段文件: {}", nirBandFile);
@@ -382,17 +386,22 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
             }
         }
         
-        // 构建保存路径: cube_id/result/quarter/algorithm_code/
+        // 构建保存路径: 用户数据根目录/username/ARD_CUB_GRIDT0_username_RAW/grid_id/analysis_type
         String cubeId = (String) parameters.get("cubeId");
         String quarter = (String) parameters.get("quarter");
         String algorithmCode = (String) parameters.get("algorithmCode");
+        String username = (String) parameters.get("username"); // 从参数中获取用户名
         String outputFormat = (String) parameters.get("outputFormat");
         if (outputFormat == null) outputFormat = "tif";
         
-        // 构建完整路径 - 新结构: D:\GISER\ard\development\cubedata\cube_id\result\quarter\algorithm_code\
-        String basePath = "D:\\GISER\\ard\\development\\cubedata";
-        String resultDirectory = basePath + "\\" + cubeId + "\\result\\" + quarter + "\\" + algorithmCode;
-        String outputPath = resultDirectory + "\\ndvi_result_" + System.currentTimeMillis() + "." + outputFormat;
+        // 如果没有用户名，使用默认值
+        if (username == null || username.isEmpty()) {
+            username = "default_user";
+        }
+        
+        // 使用新的用户目录结构：用户数据根目录/username/grid_id/quarter/analysis_type
+        String resultDirectory = userDataConfig.buildUserAnalysisPath(username, cubeId, quarter, algorithmCode);
+        String outputPath = resultDirectory + "/ndvi_result_" + System.currentTimeMillis() + "." + outputFormat;
         
         // 创建目录
         try {
@@ -469,13 +478,29 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
             String cubeId = (String) parameters.get("cubeId");
             String quarter = (String) parameters.get("quarter");
             String algorithmCode = (String) parameters.get("algorithmCode");
+            String username = (String) parameters.get("username"); // 从参数中获取用户名
             String outputFormat = (String) parameters.get("outputFormat");
             if (outputFormat == null) outputFormat = "tif";
             
-            // 构建输出路径
-            String basePath = "D:\\GISER\\ard\\development\\cubedata";
-            String resultDirectory = basePath + "\\" + cubeId + "\\result\\" + quarter + "\\" + algorithmCode;
-            String outputPath = resultDirectory + "\\ndvi_result_" + System.currentTimeMillis() + "." + outputFormat;
+            // 如果没有用户名，使用默认值
+            if (username == null || username.isEmpty()) {
+                username = "default_user";
+            }
+            
+            // 使用新的用户目录结构构建输出路径：用户数据根目录/username/grid_id/quarter/analysis_type
+            logger.info("=== 构建输出路径 ===");
+            logger.info("username: {}", username);
+            logger.info("cubeId: {}", cubeId);
+            logger.info("quarter: {}", quarter);
+            logger.info("algorithmCode: {}", algorithmCode);
+            logger.info("dataRootPath: {}", userDataConfig.getDataRootPath());
+            
+            String resultDirectory = userDataConfig.buildUserAnalysisPath(username, cubeId, quarter, algorithmCode);
+            String outputPath = resultDirectory + "/ndvi_result_" + System.currentTimeMillis() + "." + outputFormat;
+            
+            logger.info("resultDirectory: {}", resultDirectory);
+            logger.info("outputPath: {}", outputPath);
+            logger.info("==================");
             
             // 创建目录
             File dir = new File(resultDirectory);
@@ -659,6 +684,7 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
                 parameters.put("quarter", quarter);
                 parameters.put("algorithmCode", "NDVI_ANALYSIS");
                 parameters.put("taskId", taskId);
+                parameters.put("username", "default_user"); // 添加用户名参数
                 
                 // 保存NDVI结果为TIFF文件
                 String outputPath = saveNDVIToTiff(ndviResult, parameters, redBandData);

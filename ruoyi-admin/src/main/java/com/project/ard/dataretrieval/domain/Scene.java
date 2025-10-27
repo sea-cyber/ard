@@ -119,6 +119,13 @@ public class Scene implements Serializable {
     @JsonProperty("dbTimeRange")
     private String timeRange;
 
+    /**
+     * 浏览图片路径
+     */
+    @TableField("browse_image_path")
+    @JsonProperty("browseImagePath")
+    private String browseImagePath;
+
     // 分页相关字段（不映射到数据库）
     @TableField(exist = false)
     @JsonProperty("pageNum")

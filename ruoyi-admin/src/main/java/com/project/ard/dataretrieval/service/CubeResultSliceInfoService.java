@@ -40,4 +40,13 @@ public interface CubeResultSliceInfoService {
      * @return 结果切片信息列表
      */
     java.util.List<CubeResultSliceInfo> getResultSliceInfoByTaskId(String taskId);
+    
+    /**
+     * 根据用户ID和立方体ID查询结果切片信息
+     * 
+     * @param userId 用户ID
+     * @param cubeId 立方体ID
+     * @return 结果切片信息列表
+     */
+    java.util.List<CubeResultSliceInfo> getResultSliceInfoByUserIdAndCubeId(Long userId, String cubeId);
 }

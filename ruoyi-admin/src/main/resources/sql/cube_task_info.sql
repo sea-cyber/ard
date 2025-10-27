@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.cube_task_info (
     estimated_duration integer,
     actual_duration integer,
     resource_usage text,
+    browse_image_path text,
     CONSTRAINT cube_task_info_pkey PRIMARY KEY (task_id),
     CONSTRAINT fk_task_user FOREIGN KEY (user_id) REFERENCES public.sys_user (user_id) MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
 ) TABLESPACE pg_default;
@@ -67,4 +68,5 @@ COMMENT ON COLUMN public.cube_task_info.priority IS '优先级';
 COMMENT ON COLUMN public.cube_task_info.estimated_duration IS '预计持续时间(分钟)';
 COMMENT ON COLUMN public.cube_task_info.actual_duration IS '实际持续时间(分钟)';
 COMMENT ON COLUMN public.cube_task_info.resource_usage IS '资源使用情况';
+COMMENT ON COLUMN public.cube_task_info.browse_image_path IS '浏览图片路径';
 

@@ -31,6 +31,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="estimatedDuration" column="estimated_duration" />
         <result property="actualDuration"   column="actual_duration"   />
         <result property="resourceUsage"    column="resource_usage"    />
+        <result property="browseImagePath"  column="browse_image_path" />
     </resultMap>
 
     <sql id="selectCubeTaskInfoVo">
@@ -38,7 +39,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                time_start, time_end, processing_center, output_resolution, output_format, 
                workflow_id, workflow_name, workflow_description, status, progress, error_message, 
                result_count, result_directory, completion_time, priority, estimated_duration, 
-               actual_duration, resource_usage 
+               actual_duration, resource_usage, browse_image_path
         from cube_task_info
     </sql>
 
@@ -93,13 +94,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             time_start, time_end, processing_center, output_resolution, output_format,
             workflow_id, workflow_name, workflow_description, status, progress, error_message,
             result_count, result_directory, completion_time, priority, estimated_duration,
-            actual_duration, resource_usage
+            actual_duration, resource_usage, browse_image_path
         ) values (
             #{taskId}, #{taskName}, #{taskDescription}, #{taskType}, #{userId}, #{createdBy}, #{created}, #{updated},
             #{timeStart}, #{timeEnd}, #{processingCenter}, #{outputResolution}, #{outputFormat},
             #{workflowId}, #{workflowName}, #{workflowDescription}, #{status}, #{progress}, #{errorMessage},
             #{resultCount}, #{resultDirectory}, #{completionTime}, #{priority}, #{estimatedDuration},
-            #{actualDuration}, #{resourceUsage}
+            #{actualDuration}, #{resourceUsage}, #{browseImagePath}
         )
     </insert>
 

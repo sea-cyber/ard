@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -236,6 +237,7 @@ public class WorkflowTaskController extends BaseController {
         // 添加通用参数
         parameters.put("taskId", request.get("taskId"));
         parameters.put("timeStart", request.get("timeStart"));
+        parameters.put("username", request.get("username")); // 添加用户名参数
         parameters.put("timeEnd", request.get("timeEnd"));
         parameters.put("processingCenter", request.get("processingCenter"));
         
@@ -296,9 +298,9 @@ public class WorkflowTaskController extends BaseController {
                 String targetQuarter = sliceQuarter != null ? sliceQuarter : (String) parameters.get("quarter");
                 
                 if (targetCubeId != null && targetQuarter != null) {
-                    // 构建绝对目录路径: D:\GISER\ard\development\cubedata\cube_id\raw\quarter\
-                    String basePath = "D:\\GISER\\ard\\development\\cubedata";
-                    String directoryPath = basePath + "\\" + targetCubeId + "\\raw\\" + targetQuarter + "\\";
+                    // 构建绝对目录路径: D:\GISER\ard\development\cubedata\ARD_CUB_GRIDT0_OFF_RAW\cube_id\quarter\
+                    String basePath = "D:\\GISER\\ard\\development\\cubedata\\ARD_CUB_GRIDT0_OFF_RAW";
+                    String directoryPath = basePath + "\\" + targetCubeId + "\\" + targetQuarter + "\\";
                     
                     System.out.println("处理切片: " + sliceFileName + ", 立方体: " + targetCubeId + ", 季度: " + targetQuarter);
                     
@@ -400,38 +402,124 @@ public class WorkflowTaskController extends BaseController {
             String quarter = (String) parameters.get("quarter");
             String algorithmCode = workflow.getAlgorithmCode();
             
-            // 构建结果保存路径: cube_id/result/quarter/algorithm_code/
-            String resultDirectory = cubeId + "/result/" + quarter + "/" + algorithmCode;
+            // 构建结果保存路径: 用户数据根目录/username/grid_id/quarter/analysis_type
+            String username = (String) parameters.get("username");
+            if (username == null || username.isEmpty()) {
+                username = "default_user";
+            }
+            String resultDirectory = username + "/" + cubeId + "/" + quarter + "/" + algorithmCode;
             
-            // 获取计算结果
-            @SuppressWarnings("unchecked")
-            Map<String, Object> calculationResult = (Map<String, Object>) result.get("calculationResult");
-            
-            if (calculationResult != null && "success".equals(result.get("status"))) {
+            if ("success".equals(result.get("status"))) {
                 System.out.println("工作流计算成功 - 任务ID: " + taskId);
                 System.out.println("成功信息: " + result.get("message"));
-                // 计算成功，保存结果到数据库
-                String outputPath = (String) calculationResult.get("outputPath");
                 
-                // 从输出路径中提取文件名
-                String fileName = "ndvi_result_" + System.currentTimeMillis() + ".tif";
-                if (outputPath != null && !outputPath.isEmpty()) {
-                    // 从完整路径中提取文件名
-                    String[] pathParts = outputPath.split("\\\\");
-                    if (pathParts.length > 0) {
-                        fileName = pathParts[pathParts.length - 1];
+                // 调试：打印result中的所有键
+                System.out.println("Result keys: " + result.keySet());
+                
+                // 先尝试从calculationResult中获取outputPaths
+                List<String> outputPaths = null;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> calculationResult = (Map<String, Object>) result.get("calculationResult");
+                
+                if (calculationResult != null) {
+                    System.out.println("Found calculationResult: " + calculationResult.keySet());
+                    @SuppressWarnings("unchecked")
+                    List<String> paths = (List<String>) calculationResult.get("outputPaths");
+                    if (paths != null && !paths.isEmpty()) {
+                        outputPaths = paths;
+                        System.out.println("Found " + outputPaths.size() + " output paths in calculationResult");
                     }
-                    System.out.println("输出文件路径: " + outputPath);
-                    System.out.println("提取的文件名: " + fileName);
                 }
                 
-                // 保存结果到数据库
-                saveResultToDatabase(taskId, cubeId, algorithmCode, outputPath, fileName, quarter, calculationResult);
+                // 如果没有从calculationResult中找到，尝试直接从result中获取
+                if (outputPaths == null) {
+                    System.out.println("Trying to get outputPaths from result...");
+                    @SuppressWarnings("unchecked")
+                    List<String> paths = (List<String>) result.get("outputPaths");
+                    if (paths != null && !paths.isEmpty()) {
+                        outputPaths = paths;
+                        System.out.println("Found " + outputPaths.size() + " output paths in result");
+                    }
+                }
                 
-                System.out.println("工作流计算完成 - 任务ID: " + taskId);
-                System.out.println("结果保存路径: " + resultDirectory);
-                System.out.println("输出文件: " + fileName);
-                System.out.println("算法代码: " + algorithmCode);
+                if (outputPaths != null && !outputPaths.isEmpty()) {
+                    System.out.println("开始保存 " + outputPaths.size() + " 个输出文件到数据库");
+                    
+                    // 为每个输出文件保存到数据库
+                    for (int i = 0; i < outputPaths.size(); i++) {
+                        System.out.println("========== 处理第 " + (i + 1) + " 个切片 ==========");
+                        String outputPath = outputPaths.get(i);
+                        
+                        // 从输出路径中提取文件名
+                        String fileName = "ndvi_result_" + System.currentTimeMillis() + "_" + i + ".tif";
+                        if (outputPath != null && !outputPath.isEmpty()) {
+                            // 从完整路径中提取文件名
+                            String[] pathParts = outputPath.split("\\\\");
+                            if (pathParts.length > 0) {
+                                fileName = pathParts[pathParts.length - 1];
+                            }
+                            System.out.println("输出文件路径 " + (i + 1) + ": " + outputPath);
+                            System.out.println("提取的文件名 " + (i + 1) + ": " + fileName);
+                        }
+                        
+                        // 创建计算结果对象（用于兼容原有接口）
+                        Map<String, Object> calcResult = new HashMap<>();
+                        calcResult.put("outputPath", outputPath);
+                        calcResult.put("validPixels", 0);
+                        calcResult.put("meanValue", 0.0);
+                        calcResult.put("minValue", 0.0);
+                        calcResult.put("maxValue", 0.0);
+                        
+                        // 保存结果到数据库
+                        boolean saveResult = saveResultToDatabase(taskId, cubeId, algorithmCode, outputPath, fileName, quarter, calcResult);
+                        
+                        if (saveResult) {
+                            System.out.println("第 " + (i + 1) + " 个切片插入数据库成功!");
+                        } else {
+                            System.err.println("第 " + (i + 1) + " 个切片插入数据库失败!");
+                        }
+                    }
+                    
+                    System.out.println("工作流计算完成 - 任务ID: " + taskId);
+                    System.out.println("结果保存路径: " + resultDirectory);
+                    System.out.println("输出文件数量: " + outputPaths.size());
+                    System.out.println("算法代码: " + algorithmCode);
+                } else {
+                    System.err.println("未找到输出路径列表，尝试兼容的单文件处理逻辑");
+                    
+                    // 兼容原有的单文件处理逻辑
+                    if (calculationResult != null) {
+                        String outputPath = (String) calculationResult.get("outputPath");
+                        
+                        // 从输出路径中提取文件名
+                        String fileName = "ndvi_result_" + System.currentTimeMillis() + ".tif";
+                        if (outputPath != null && !outputPath.isEmpty()) {
+                            // 从完整路径中提取文件名
+                            String[] pathParts = outputPath.split("\\\\");
+                            if (pathParts.length > 0) {
+                                fileName = pathParts[pathParts.length - 1];
+                            }
+                            System.out.println("输出文件路径: " + outputPath);
+                            System.out.println("提取的文件名: " + fileName);
+                        }
+                        
+                        // 保存结果到数据库
+                        boolean saveResult = saveResultToDatabase(taskId, cubeId, algorithmCode, outputPath, fileName, quarter, calculationResult);
+                        
+                        if (saveResult) {
+                            System.out.println("第 1 个切片插入数据库成功!");
+                        } else {
+                            System.err.println("第 1 个切片插入数据库失败!");
+                        }
+                        
+                        System.out.println("工作流计算完成 - 任务ID: " + taskId);
+                        System.out.println("结果保存路径: " + resultDirectory);
+                        System.out.println("输出文件: " + fileName);
+                        System.out.println("算法代码: " + algorithmCode);
+                    } else {
+                        System.err.println("没有找到任何结果数据");
+                    }
+                }
                 
             } else {
                 System.err.println("工作流计算失败 - 任务ID: " + taskId);
@@ -499,7 +587,7 @@ public class WorkflowTaskController extends BaseController {
     /**
      * 保存计算结果到数据库
      */
-    private void saveResultToDatabase(String taskId, String cubeId, String algorithmCode, 
+    private boolean saveResultToDatabase(String taskId, String cubeId, String algorithmCode, 
                                     String outputPath, String fileName, String quarter, 
                                     Map<String, Object> calculationResult) {
         try {
@@ -556,13 +644,16 @@ public class WorkflowTaskController extends BaseController {
             
             if (saveResult) {
                 System.out.println("=== 数据库保存成功 ===");
+                return true;
             } else {
                 System.err.println("=== 数据库保存失败 ===");
+                return false;
             }
             
         } catch (Exception e) {
             System.err.println("保存计算结果到数据库失败: " + e.getMessage());
             e.printStackTrace();
+            return false;
         }
     }
 }

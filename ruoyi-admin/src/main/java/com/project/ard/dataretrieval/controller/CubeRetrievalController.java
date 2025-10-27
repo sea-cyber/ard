@@ -9,6 +9,9 @@ import com.project.ard.dataretrieval.domain.vo.CubeDetailResponse;
 import com.project.ard.dataretrieval.domain.vo.CubeSliceResponse;
 import com.project.ard.dataretrieval.service.CubeService;
 import com.project.ard.dataretrieval.service.CubeSliceService;
+import com.project.ard.dataretrieval.service.CubeResultSliceInfoService;
+import com.project.ard.dataretrieval.domain.CubeResultSliceInfo;
+import com.project.common.utils.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +32,9 @@ public class CubeRetrievalController extends BaseController {
     
     @Autowired
     private CubeSliceService cubeSliceService;
+    
+    @Autowired
+    private CubeResultSliceInfoService cubeResultSliceInfoService;
 
     /**
      * 搜索立方体数据
@@ -147,6 +153,57 @@ public class CubeRetrievalController extends BaseController {
         } catch (Exception e) {
             logger.error("查询立方体切片失败，立方体ID: {}", cubeId, e);
             throw new RuntimeException("查询立方体切片失败", e);
+        }
+    }
+    
+    /**
+     * 根据立方体ID获取切片信息（来自cube_slice_info表）
+     * 
+     * @param cubeId 立方体ID
+     * @return 切片信息
+     */
+    @GetMapping("/slice-info/{cubeId}")
+    public CubeSliceResponse getCubeSliceInfo(@PathVariable String cubeId) {
+        try {
+            logger.info("收到立方体切片信息查询请求，立方体ID: {}", cubeId);
+            
+            // 获取第一个切片作为代表
+            List<CubeSliceResponse> slices = cubeSliceService.getSlicesByCubeId(cubeId);
+            if (slices != null && !slices.isEmpty()) {
+                logger.info("立方体切片信息查询成功，立方体ID: {}", cubeId);
+                return slices.get(0); // 返回第一个切片作为代表
+            } else {
+                logger.warn("未找到立方体切片信息，立方体ID: {}", cubeId);
+                return null;
+            }
+            
+        } catch (Exception e) {
+            logger.error("查询立方体切片信息失败，立方体ID: {}", cubeId, e);
+            throw new RuntimeException("查询立方体切片信息失败", e);
+        }
+    }
+    
+    /**
+     * 根据立方体ID获取当前用户的结果切片信息（来自cube_result_slice_info表）
+     * 
+     * @param cubeId 立方体ID
+     * @return 结果切片信息列表
+     */
+    @GetMapping("/result-slice-info/{cubeId}")
+    public List<CubeResultSliceInfo> getUserResultSliceInfo(@PathVariable String cubeId) {
+        try {
+            // 获取当前用户ID
+            Long userId = SecurityUtils.getUserId();
+            logger.info("收到用户结果切片信息查询请求，用户ID: {}, 立方体ID: {}", userId, cubeId);
+            
+            List<CubeResultSliceInfo> resultSlices = cubeResultSliceInfoService.getResultSliceInfoByUserIdAndCubeId(userId, cubeId);
+            logger.info("用户结果切片信息查询成功，用户ID: {}, 立方体ID: {}, 结果数量: {}", userId, cubeId, resultSlices.size());
+            
+            return resultSlices;
+            
+        } catch (Exception e) {
+            logger.error("查询用户结果切片信息失败，立方体ID: {}", cubeId, e);
+            throw new RuntimeException("查询用户结果切片信息失败", e);
         }
     }
 }

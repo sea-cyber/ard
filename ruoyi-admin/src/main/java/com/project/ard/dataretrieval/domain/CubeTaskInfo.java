@@ -1,8 +1,10 @@
 package com.project.ard.dataretrieval.domain;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.OffsetDateTime;
@@ -152,6 +154,13 @@ public class CubeTaskInfo {
      */
     private String resourceUsage;
 
+    /**
+     * 浏览图片路径
+     */
+    @TableField("browse_image_path")
+    @JsonProperty("browseImagePath")
+    private String browseImagePath;
+
     // Getter and Setter methods
     public String getTaskId() { return taskId; }
     public void setTaskId(String taskId) { this.taskId = taskId; }
@@ -230,5 +239,8 @@ public class CubeTaskInfo {
     
     public String getResourceUsage() { return resourceUsage; }
     public void setResourceUsage(String resourceUsage) { this.resourceUsage = resourceUsage; }
+
+    public String getBrowseImagePath() { return browseImagePath; }
+    public void setBrowseImagePath(String browseImagePath) { this.browseImagePath = browseImagePath; }
 }
 

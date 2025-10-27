@@ -41,7 +41,10 @@ logging:
 ard:
   cube:
     # 立方体根存储目录（按需修改，支持不同环境覆盖）
-    root-path: D:/GISER/ard/development/cubedata
+    root-path: D:/GISER/ard/development/cubedata/ARD_CUB_GRIDT0_OFF_RAW
+  user:
+    # 用户数据根目录（用户分析结果存储目录）
+    data-root-path: D:/GISER/ard/development/cubedata/ARD_CUB_GRIDT0_USR
 
 
 # 用户配置
