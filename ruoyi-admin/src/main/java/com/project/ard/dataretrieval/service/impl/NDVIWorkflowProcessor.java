@@ -14,6 +14,15 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.RenderingHints;
+import javax.imageio.ImageIO;
+import com.project.ard.dataretrieval.mapper.CubeMapper;
+import com.project.ard.dataretrieval.domain.Cube;
 
 /**
  * NDVI植被指数工作流处理器
@@ -32,6 +41,9 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
     
     @Autowired
     private com.project.ard.dataretrieval.service.CubeTaskStepService cubeTaskStepService;
+    
+    @Autowired
+    private CubeMapper cubeMapper;
     
     @Override
     public String getSupportedWorkflowType() {
@@ -72,6 +84,11 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
             int successfulFiles = 0;
             List<String> processedFiles = new java.util.ArrayList<>();
             List<String> outputPaths = new java.util.ArrayList<>();
+            // 保存输出路径到原始切片信息的映射，确保保存数据库时使用正确的cubeId
+            Map<String, String> outputPathToCubeId = new java.util.HashMap<>();
+            Map<String, String> outputPathToQuarter = new java.util.HashMap<>();
+            // 保存输出路径到预览图路径的映射
+            Map<String, String> outputPathToBrowseImagePath = new java.util.HashMap<>();
             
             // 开始结果输出步骤（只执行一次）
             if (taskId != null) {
@@ -91,10 +108,17 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
                     }
                     
                     String sliceFileName = parts[0];
-                    String cubeId = parts[1];
+                    String cubeId = parts[1];  // 从切片标识符中获取cubeId（这是原始切片的cubeId）
                     String quarter = parts[2];
                     
                     logger.info("解析切片信息 - 标识符: {}, 立方体: {}, 季度: {}", sliceFileName, cubeId, quarter);
+                    
+                    String gridId = null;
+                    Cube cube = cubeMapper.selectById(cubeId);
+                    if (cube != null) {
+                        gridId = cube.getGridId();
+                    }
+                    if (gridId == null) gridId = cubeId; // fallback警告
                     
                     if (cubeId != null && quarter != null) {
                         // 构建波段文件路径 - 使用配置的原始数据路径：ARD_CUB_GRIDT0_OFF_RAW/grid_id/quarter
@@ -119,17 +143,39 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
                             continue;
                         }
                         
-                        // 计算NDVI
+                        // 计算NDVI（使用原始切片的cubeId）
                         Map<String, Object> ndviResult = calculateNDVIForSlice(redBandFile, nirBandFile, cubeId, quarter, taskId);
                         
                         if ("success".equals(ndviResult.get("status"))) {
                             successfulFiles++;
                             processedFiles.add(sliceFile);
                             
-                            // 收集输出路径
+                            // 收集输出路径，并保存对应的原始切片信息
                             String outputPath = (String) ndviResult.get("outputPath");
                             if (outputPath != null) {
                                 outputPaths.add(outputPath);
+                                
+                                // 标准化输出路径（统一路径分隔符），确保后续匹配时能正确找到
+                                String normalizedPath = outputPath.replace("\\", "/");
+                                
+                                // 保存输出路径到原始切片cubeId和quarter的映射
+                                // 同时保存原始路径和标准化路径，确保后续能匹配到
+                                // 这样在保存数据库时，可以确保使用正确的cubeId
+                                outputPathToCubeId.put(outputPath, cubeId);
+                                outputPathToCubeId.put(normalizedPath, cubeId);  // 也保存标准化版本
+                                outputPathToQuarter.put(outputPath, quarter);
+                                outputPathToQuarter.put(normalizedPath, quarter);  // 也保存标准化版本
+                                
+                                // 获取并保存预览图路径
+                                String browseImagePath = (String) ndviResult.get("browseImagePath");
+                                if (browseImagePath != null) {
+                                    outputPathToBrowseImagePath.put(outputPath, browseImagePath);
+                                    outputPathToBrowseImagePath.put(normalizedPath, browseImagePath);
+                                    logger.info("保存预览图路径映射 - 输出路径: {}, 预览图路径: {}", outputPath, browseImagePath);
+                                }
+                                
+                                logger.info("保存输出路径映射 - 输出路径: {}, 标准化路径: {}, 原始切片cubeId: {}, quarter: {}", 
+                                          outputPath, normalizedPath, cubeId, quarter);
                             }
                             
                             logger.info("切片NDVI计算成功: {}", sliceFile);
@@ -147,6 +193,10 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
             result.put("processedFiles", processedFiles);
             result.put("totalFiles", sliceFilePaths.size());
             result.put("outputPaths", outputPaths);
+            // 保存输出路径到原始切片信息的映射，供保存数据库时使用
+            result.put("outputPathToCubeId", outputPathToCubeId);
+            result.put("outputPathToQuarter", outputPathToQuarter);
+            result.put("outputPathToBrowseImagePath", outputPathToBrowseImagePath);
             
             if (successfulFiles == 0) {
                 result.put("status", "error");
@@ -172,6 +222,10 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
             calculationResult.put("outputPath", outputPaths.isEmpty() ? null : outputPaths.get(0)); // 使用第一个输出路径
             calculationResult.put("outputPaths", outputPaths);
             calculationResult.put("successfulFiles", successfulFiles);
+            // 重要：将映射关系也放入calculationResult，确保保存结果时能获取到
+            calculationResult.put("outputPathToCubeId", outputPathToCubeId);
+            calculationResult.put("outputPathToQuarter", outputPathToQuarter);
+            calculationResult.put("outputPathToBrowseImagePath", outputPathToBrowseImagePath);
             result.put("calculationResult", calculationResult);
             
         } catch (Exception e) {
@@ -388,7 +442,6 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
         
         // 构建保存路径: 用户数据根目录/username/ARD_CUB_GRIDT0_username_RAW/grid_id/analysis_type
         String cubeId = (String) parameters.get("cubeId");
-        String quarter = (String) parameters.get("quarter");
         String algorithmCode = (String) parameters.get("algorithmCode");
         String username = (String) parameters.get("username"); // 从参数中获取用户名
         String outputFormat = (String) parameters.get("outputFormat");
@@ -400,8 +453,10 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
         }
         
         // 使用新的用户目录结构：用户数据根目录/username/grid_id/quarter/analysis_type
-        String resultDirectory = userDataConfig.buildUserAnalysisPath(username, cubeId, quarter, algorithmCode);
-        String outputPath = resultDirectory + "/ndvi_result_" + System.currentTimeMillis() + "." + outputFormat;
+        String resultDirectory = userDataConfig.buildUserAnalysisPath(username, cubeId, algorithmCode);
+        String vizDirectory = userDataConfig.buildUserVizPath(username, cubeId);
+        // 元数据路径示例：
+        String metadataPath = resultDirectory + "/../metadata.json";
         
         // 创建目录
         try {
@@ -418,7 +473,7 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
             logger.error("创建结果目录异常: {}", e.getMessage(), e);
         }
         
-        logger.info("NDVI结果保存路径: {}", outputPath);
+        logger.info("NDVI结果保存路径: {}", resultDirectory);
         
         overallResult.put("totalFiles", processingResults.size());
         overallResult.put("successfulFiles", successfulFiles);
@@ -426,7 +481,7 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
         overallResult.put("maxValue", totalMax == Double.MIN_VALUE ? 0.0 : totalMax);
         overallResult.put("meanValue", totalValidPixels > 0 ? totalSum / totalValidPixels : 0.0);
         overallResult.put("totalValidPixels", totalValidPixels);
-        overallResult.put("outputPath", outputPath);
+        overallResult.put("outputPath", resultDirectory);
         overallResult.put("resultDirectory", resultDirectory);
         
         return overallResult;
@@ -470,39 +525,35 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
      */
     private String saveNDVIToTiff(Map<String, Object> ndviResult, Map<String, Object> parameters, Map<String, Object> redBandData) {
         try {
-            // 获取任务ID
             String taskId = (String) parameters.get("taskId");
-            
-            
-            // 获取参数
             String cubeId = (String) parameters.get("cubeId");
-            String quarter = (String) parameters.get("quarter");
             String algorithmCode = (String) parameters.get("algorithmCode");
-            String username = (String) parameters.get("username"); // 从参数中获取用户名
+            String username = (String) parameters.get("username");
+            if (username == null || username.isEmpty()) {
+                Object uid = parameters.get("userId");
+                username = (uid != null) ? String.valueOf(uid) : "unnamed";
+            }
             String outputFormat = (String) parameters.get("outputFormat");
             if (outputFormat == null) outputFormat = "tif";
-            
-            // 如果没有用户名，使用默认值
-            if (username == null || username.isEmpty()) {
-                username = "default_user";
-            }
-            
-            // 使用新的用户目录结构构建输出路径：用户数据根目录/username/grid_id/quarter/analysis_type
+
             logger.info("=== 构建输出路径 ===");
             logger.info("username: {}", username);
             logger.info("cubeId: {}", cubeId);
-            logger.info("quarter: {}", quarter);
             logger.info("algorithmCode: {}", algorithmCode);
             logger.info("dataRootPath: {}", userDataConfig.getDataRootPath());
-            
-            String resultDirectory = userDataConfig.buildUserAnalysisPath(username, cubeId, quarter, algorithmCode);
+
+            String resultDirectory = userDataConfig.buildUserAnalysisPath(username, cubeId, algorithmCode); // 没有quarter
+            String vizDirectory = userDataConfig.buildUserVizPath(username, cubeId);
+            // 元数据路径示例：
+            String metadataPath = resultDirectory + "/../metadata.json";
+
             String outputPath = resultDirectory + "/ndvi_result_" + System.currentTimeMillis() + "." + outputFormat;
-            
+
             logger.info("resultDirectory: {}", resultDirectory);
+            logger.info("vizDirectory: {}", vizDirectory);
             logger.info("outputPath: {}", outputPath);
             logger.info("==================");
-            
-            // 创建目录
+
             File dir = new File(resultDirectory);
             if (!dir.exists()) {
                 boolean created = dir.mkdirs();
@@ -512,25 +563,29 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
                     logger.warn("创建结果目录失败: {}", resultDirectory);
                 }
             }
-            
-            // 获取NDVI数据和原始数据信息
+
             double[] ndviData = (double[]) ndviResult.get("data");
             int width = (Integer) redBandData.get("width");
             int height = (Integer) redBandData.get("height");
-            
-            // 获取地理变换参数和投影信息
             double[] geotransform = (double[]) redBandData.get("geotransform");
             String projection = (String) redBandData.get("projection");
-            
-            // 使用GDAL保存TIFF文件
             saveNDVITiffWithGDAL(ndviData, width, height, geotransform, projection, outputPath);
-            
-            
+
+            // 生成JPG预览图
+            logger.info("开始生成NDVI预览图 - cubeId: {}, username: {}, outputPath: {}", cubeId, username, outputPath);
+            String jpgPath = generatePreviewImage(ndviData, width, height, cubeId, username, ndviResult, outputPath);
+            if (jpgPath != null) {
+                logger.info("NDVI预览图已生成，相对路径: {}", jpgPath);
+                parameters.put("browseImagePath", jpgPath);
+                logger.info("预览图路径已保存到parameters: {}", jpgPath);
+            } else {
+                logger.warn("NDVI预览图生成失败或返回null");
+            }
+
             logger.info("NDVI结果已保存到: {}", outputPath);
             return outputPath;
-            
+
         } catch (Exception e) {
-            // 失败结果输出步骤
             String taskId = (String) parameters.get("taskId");
             if (taskId != null) {
                 cubeTaskStepService.failStep(taskId, 4, "结果输出失败: " + e.getMessage());
@@ -690,6 +745,14 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
                 String outputPath = saveNDVIToTiff(ndviResult, parameters, redBandData);
                 ndviResult.put("outputPath", outputPath);
                 
+                // 获取生成的预览图路径
+                String browseImagePath = (String) parameters.get("browseImagePath");
+                if (browseImagePath != null) {
+                    ndviResult.put("browseImagePath", browseImagePath);
+                    result.put("browseImagePath", browseImagePath);
+                    logger.info("预览图路径已添加到结果: {}", browseImagePath);
+                }
+                
                 result.put("status", "success");
                 result.put("message", "NDVI计算成功");
                 result.put("outputPath", outputPath);
@@ -709,5 +772,200 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
         }
         
         return result;
+    }
+    
+    /**
+     * 生成NDVI预览图（JPG格式，带水印）
+     * 
+     * @param ndviData NDVI数据数组
+     * @param width 图像宽度
+     * @param height 图像高度
+     * @param cubeId 立方体ID
+     * @param username 用户名
+     * @param ndviResult NDVI计算结果（包含统计信息）
+     * @param tifPath TIF文件路径（用于生成对应的JPG文件名）
+     * @return JPG文件路径（相对于服务器根目录）
+     */
+    private String generatePreviewImage(double[] ndviData, int width, int height, 
+                                       String cubeId, String username, 
+                                       Map<String, Object> ndviResult, String tifPath) {
+        try {
+            // 直接使用参数 username/cubeId，不要再重新定义。只从参数列表获取。
+            String vizDirectory = userDataConfig.buildUserVizPath(username, cubeId);
+            logger.info("构建预览图目录路径 - username: {}, cubeId: {}, 目录: {}", username, cubeId, vizDirectory);
+            File vizDir = new File(vizDirectory);
+            if (!vizDir.exists()) {
+                logger.info("预览图目录不存在，开始创建: {}", vizDirectory);
+                boolean created = vizDir.mkdirs();
+                if (created) {
+                    logger.info("✓ 预览图目录创建成功: {}", vizDirectory);
+                } else {
+                    logger.error("✗ 创建预览图目录失败: {}", vizDirectory);
+                    return null;
+                }
+            } else {
+                logger.info("预览图目录已存在: {}", vizDirectory);
+            }
+            
+            // 生成JPG文件名（基于TIF文件名）
+            String tifFileName = new File(tifPath).getName();
+            String baseName = tifFileName.substring(0, tifFileName.lastIndexOf('.'));
+            String jpgFileName = baseName + ".jpg";
+            String jpgPath = vizDirectory + "/" + jpgFileName;
+            
+            // 创建BufferedImage（RGB格式）
+            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            
+            // 获取NDVI统计信息（用于颜色映射）
+            double minValue = ndviResult.get("minValue") != null ? (Double) ndviResult.get("minValue") : -1.0;
+            double maxValue = ndviResult.get("maxValue") != null ? (Double) ndviResult.get("maxValue") : 1.0;
+            
+            // 将NDVI值映射到RGB颜色
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int index = y * width + x;
+                    if (index < ndviData.length) {
+                        double ndvi = ndviData[index];
+                        Color color;
+                        
+                        // 处理无效值
+                        if (ndvi <= -9999 || Double.isNaN(ndvi)) {
+                            color = Color.BLACK; // 无效值显示为黑色
+                        } else {
+                            // NDVI颜色映射：-1到1 -> 蓝色到红色（标准NDVI配色）
+                            // 或者使用更标准的配色：棕色(-1) -> 黄色(0) -> 绿色(1)
+                            color = mapNDVIToColor(ndvi, minValue, maxValue);
+                        }
+                        
+                        image.setRGB(x, y, color.getRGB());
+                    } else {
+                        image.setRGB(x, y, Color.BLACK.getRGB());
+                    }
+                }
+            }
+            
+            // 添加水印（统计信息）
+            Graphics2D g2d = image.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            
+            // 设置字体
+            Font font = new Font("Microsoft YaHei", Font.BOLD, Math.max(width / 40, 12));
+            g2d.setFont(font);
+            FontMetrics fm = g2d.getFontMetrics();
+            
+            // 获取统计信息
+            Integer validPixels = ndviResult.get("validPixels") != null ? (Integer) ndviResult.get("validPixels") : 0;
+            Double meanValue = ndviResult.get("meanValue") != null ? (Double) ndviResult.get("meanValue") : 0.0;
+            Double minNDVI = ndviResult.get("minValue") != null ? (Double) ndviResult.get("minValue") : 0.0;
+            Double maxNDVI = ndviResult.get("maxValue") != null ? (Double) ndviResult.get("maxValue") : 0.0;
+            
+            // 构建水印文本
+            String watermarkText = String.format(
+                "NDVI Analysis | Valid: %d | Mean: %.4f | Min: %.4f | Max: %.4f",
+                validPixels, meanValue, minNDVI, maxNDVI
+            );
+            
+            // 计算文本位置（右下角，带背景）
+            int textX = width - fm.stringWidth(watermarkText) - 20;
+            int textY = height - 20;
+            
+            // 绘制半透明背景
+            g2d.setColor(new Color(0, 0, 0, 180)); // 半透明黑色
+            g2d.fillRect(textX - 10, textY - fm.getHeight() - 5, 
+                        fm.stringWidth(watermarkText) + 20, fm.getHeight() + 10);
+            
+            // 绘制文本
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(watermarkText, textX, textY);
+            
+            // 添加立方体ID和用户名信息（左上角）
+            String infoText = String.format("Cube: %s | User: %s", cubeId, username);
+            Font infoFont = new Font("Microsoft YaHei", Font.PLAIN, Math.max(width / 50, 10));
+            g2d.setFont(infoFont);
+            FontMetrics infoFm = g2d.getFontMetrics();
+            
+            int infoX = 10;
+            int infoY = 30;
+            
+            // 绘制信息背景
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.fillRect(infoX - 5, infoY - infoFm.getHeight() - 5,
+                        infoFm.stringWidth(infoText) + 10, infoFm.getHeight() + 10);
+            
+            // 绘制信息文本
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(infoText, infoX, infoY);
+            
+            g2d.dispose();
+            
+            // 保存为JPG文件
+            File jpgFile = new File(jpgPath);
+            ImageIO.write(image, "jpg", jpgFile);
+            
+            logger.info("NDVI预览图生成成功（绝对路径）: {}", jpgPath);
+            
+            // 返回相对于用户数据根目录的路径（用于存储到数据库）
+            // 例如：/default_user/ARD_CUB_GRIDT0_default_user_VIZ/cube_id/filename.jpg
+            String dataRootPath = userDataConfig.getDataRootPath();
+            logger.info("用户数据根目录: {}", dataRootPath);
+            
+            // 标准化路径分隔符
+            String normalizedDataRootPath = dataRootPath.replace("\\", "/");
+            String normalizedJpgPath = jpgPath.replace("\\", "/");
+            
+            // 计算相对路径
+            String relativePath;
+            if (normalizedJpgPath.startsWith(normalizedDataRootPath)) {
+                relativePath = normalizedJpgPath.substring(normalizedDataRootPath.length());
+                // 确保以 / 开头
+                if (!relativePath.startsWith("/")) {
+                    relativePath = "/" + relativePath;
+                }
+            } else {
+                // 如果路径不匹配，使用相对于用户数据根目录的路径
+                // 从路径中提取用户名和cubeId部分
+                // jpgPath格式: dataRootPath/username/ARD_CUB_GRIDT0_username_VIZ/cubeId/filename.jpg
+                String pathAfterRoot = normalizedJpgPath.replace(normalizedDataRootPath, "");
+                relativePath = pathAfterRoot.startsWith("/") ? pathAfterRoot : "/" + pathAfterRoot;
+            }
+            
+            logger.info("预览图相对路径: {}", relativePath);
+            return relativePath;
+            
+        } catch (Exception e) {
+            logger.error("生成NDVI预览图失败: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
+     * 将NDVI值映射到RGB颜色
+     * 使用标准NDVI配色方案：-1(蓝色) -> 0(黄色) -> 1(绿色)
+     */
+    private Color mapNDVIToColor(double ndvi, double minValue, double maxValue) {
+        // 标准化NDVI值到0-1范围
+        double normalized = (ndvi - minValue) / (maxValue - minValue);
+        normalized = Math.max(0.0, Math.min(1.0, normalized));
+        
+        int r, g, b;
+        
+        // NDVI标准配色：
+        // -1.0 (蓝色) -> 0.0 (黄色) -> 1.0 (绿色)
+        if (normalized < 0.5) {
+            // 蓝色到黄色 (normalized: 0 -> 0.5)
+            double t = normalized * 2.0; // 0 -> 1
+            r = (int) (t * 255); // 0 -> 255
+            g = (int) (t * 255); // 0 -> 255
+            b = (int) ((1 - t) * 255); // 255 -> 0
+        } else {
+            // 黄色到绿色 (normalized: 0.5 -> 1.0)
+            double t = (normalized - 0.5) * 2.0; // 0 -> 1
+            r = (int) ((1 - t) * 255); // 255 -> 0
+            g = 255; // 保持255
+            b = 0; // 保持0
+        }
+        
+        return new Color(r, g, b);
     }
 }

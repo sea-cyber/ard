@@ -1,8 +1,10 @@
 package com.project.ard.dataretrieval.domain;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
@@ -12,40 +14,59 @@ public class CubeResultSliceInfo {
     @TableId(value = "result_slice_id", type = IdType.AUTO)
     private Long resultSliceId;
 
+    @TableField("cube_id")
     private String cubeId;
 
+    @TableField("user_id")
     private Long userId;
 
+    @TableField("raw_slice_id")
     private Integer rawSliceId;
 
+    @TableField("analysis_type")
     private String analysisType;
 
+    @TableField("result_slice_path")
     private String resultSlicePath;
 
+    @TableField("file_name")
     private String fileName;
 
+    @TableField("file_format")
     private String fileFormat;
 
+    @TableField("browse_image_path")
+    @JsonProperty("browse_image_path")
     private String browseImagePath;
 
+    @TableField("browse_file_name")
     private String browseFileName;
 
+    @TableField("browse_format")
     private String browseFormat;
 
+    @TableField("analysis_time")
     private OffsetDateTime analysisTime;
 
+    @TableField("location")
     private String location;
 
+    @TableField("result_desc")
     private String resultDesc;
 
+    @TableField("resolution")
     private String resolution;
 
+    @TableField("created")
     private OffsetDateTime created;
 
+    @TableField("updated")
     private OffsetDateTime updated;
 
+    @TableField("created_by")
     private String createdBy;
 
+    @TableField("task_id")
     private String taskId;
 
     public Long getResultSliceId() { return resultSliceId; }

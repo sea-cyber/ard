@@ -27,18 +27,11 @@ public class UserDataConfig {
     }
     
     /**
-     * 构建用户分析结果存储路径
-     * 格式：用户数据根目录/username/grid_id_RAW/quarter/analysis_type
-     * 
-     * @param username 用户名
-     * @param gridId 网格ID
-     * @param quarter 季度
-     * @param analysisType 分析类型
-     * @return 完整的存储路径
+     * 保存分析结果的tif：用户数据根目录/username/ARD_CUB_GRIDT0_username_RAW/grid_id/analysis_type
      */
-    public String buildUserAnalysisPath(String username, String gridId, String quarter, String analysisType) {
-        String rawGridId = gridId + "_RAW";
-        return dataRootPath + "/" + username + "/" + rawGridId + "/" + quarter + "/" + analysisType;
+    public String buildUserAnalysisPath(String username, String gridId, String analysisType) {
+        String userCubeName = "ARD_CUB_GRIDT0_" + username + "_RAW";
+        return dataRootPath + "/" + username + "/" + userCubeName + "/" + gridId + "/" + analysisType;
     }
     
     /**
@@ -51,5 +44,13 @@ public class UserDataConfig {
     public String buildUserCubePath(String username) {
         String userCubeName = "ARD_CUB_GRIDT0_" + username + "_RAW";
         return dataRootPath + "/" + username + "/" + userCubeName;
+    }
+    
+    /**
+     * 预览图/浏览图片：用户数据根目录/username/ARD_CUB_GRIDT0_username_VIZ/grid_id/
+     */
+    public String buildUserVizPath(String username, String gridId) {
+        String userCubeName = "ARD_CUB_GRIDT0_" + username + "_VIZ";
+        return dataRootPath + "/" + username + "/" + userCubeName + "/" + gridId;
     }
 }

@@ -40,12 +40,21 @@ public class CubeResultSliceInfoServiceImpl implements CubeResultSliceInfoServic
                 resultSliceInfo.setAnalysisTime(OffsetDateTime.now());
             }
             
+            // 调试：打印要保存的对象的所有字段值
+            logger.info("=== 准备保存到数据库的对象信息 ===");
+            logger.info("cubeId: {}", resultSliceInfo.getCubeId());
+            logger.info("fileName: {}", resultSliceInfo.getFileName());
+            logger.info("resultSlicePath: {}", resultSliceInfo.getResultSlicePath());
+            logger.info("browseImagePath: {}", resultSliceInfo.getBrowseImagePath());
+            logger.info("===============================");
+            
             // 插入数据
             int result = cubeResultSliceInfoMapper.insert(resultSliceInfo);
             
             if (result > 0) {
-                logger.info("成功保存结果切片信息 - 立方体ID: {}, 分析类型: {}, 文件名: {}", 
-                           resultSliceInfo.getCubeId(), resultSliceInfo.getAnalysisType(), resultSliceInfo.getFileName());
+                logger.info("成功保存结果切片信息 - 立方体ID: {}, 分析类型: {}, 文件名: {}, 预览图路径: {}", 
+                           resultSliceInfo.getCubeId(), resultSliceInfo.getAnalysisType(), 
+                           resultSliceInfo.getFileName(), resultSliceInfo.getBrowseImagePath());
                 return true;
             } else {
                 logger.error("保存结果切片信息失败 - 立方体ID: {}, 分析类型: {}", 

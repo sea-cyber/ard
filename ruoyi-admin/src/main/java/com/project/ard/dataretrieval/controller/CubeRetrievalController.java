@@ -3,6 +3,7 @@ package com.project.ard.dataretrieval.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.project.common.core.controller.BaseController;
 import com.project.common.core.page.TableDataInfo;
+import com.project.common.core.domain.AjaxResult;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalRequest;
 import com.project.ard.dataretrieval.domain.vo.CubeRetrievalResponse;
 import com.project.ard.dataretrieval.domain.vo.CubeDetailResponse;
@@ -87,23 +88,24 @@ public class CubeRetrievalController extends BaseController {
      * @return 立方体详情
      */
     @GetMapping("/detail/{cubeId}")
-    public CubeDetailResponse getCubeDetail(@PathVariable String cubeId) {
+    public AjaxResult getCubeDetail(@PathVariable String cubeId) {
         try {
             logger.info("收到立方体详情查询请求，立方体ID: {}", cubeId);
             
             CubeDetailResponse detail = cubeService.getCubeDetail(cubeId);
             if (detail == null) {
                 logger.warn("未找到立方体详情，立方体ID: {}", cubeId);
-                return null;
+                return AjaxResult.error("未找到立方体详情，立方体ID: " + cubeId);
             }
             
-            logger.info("立方体详情查询成功，包含 {} 条切片数据", 
-                    detail.getSlices() != null ? detail.getSlices().size() : 0);
-            return detail;
+            logger.info("立方体详情查询成功，包含 {} 条切片数据，边界信息: {}", 
+                    detail.getSlices() != null ? detail.getSlices().size() : 0,
+                    detail.getBoundary() != null ? "存在" : "不存在");
+            return AjaxResult.success(detail);
             
         } catch (Exception e) {
             logger.error("查询立方体详情失败，立方体ID: {}", cubeId, e);
-            throw new RuntimeException("查询立方体详情失败", e);
+            return AjaxResult.error("查询立方体详情失败: " + e.getMessage());
         }
     }
     

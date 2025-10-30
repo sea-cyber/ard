@@ -9,6 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.OffsetDateTime;
 
 import java.util.HashMap;
 import java.util.List;
@@ -155,6 +159,9 @@ public class WorkflowTaskController extends BaseController {
                 // 构建计算参数
                 Map<String, Object> parameters = buildCalculationParameters(request, workflow);
                 
+                // 将selectedSlices添加到parameters中，以便在保存结果时使用
+                parameters.put("selectedSlices", selectedSlices);
+                
                 // 获取切片文件路径（修改为新的路径结构）
                 List<String> sliceFiles = extractSliceFilePathsForCalculation(selectedSlices, parameters);
                 
@@ -240,6 +247,10 @@ public class WorkflowTaskController extends BaseController {
         parameters.put("username", request.get("username")); // 添加用户名参数
         parameters.put("timeEnd", request.get("timeEnd"));
         parameters.put("processingCenter", request.get("processingCenter"));
+        parameters.put("userId", request.get("userId"));
+        if ((parameters.get("username") == null || "".equals(parameters.get("username"))) && request.get("userId") != null) {
+            parameters.put("username", String.valueOf(request.get("userId")));
+        }
         
         // 添加切片文件路径列表
         @SuppressWarnings("unchecked")
@@ -291,43 +302,54 @@ public class WorkflowTaskController extends BaseController {
                 String sliceFileName = (String) slice.get("fileName");
                 String sliceQuarter = (String) slice.get("quarter");
                 
-                // 使用参数中的cubeId，如果没有则使用slice中的cubeId
-                String targetCubeId = cubeId != null ? cubeId : sliceCubeId;
+                // 关键修复：必须使用切片自己的cubeId，不能使用全局cubeId
+                // 这样可以确保每个切片使用正确的cubeId构建路径和标识符
+                String targetCubeId = sliceCubeId != null ? sliceCubeId : cubeId;
                 
                 // 使用切片自己的quarter，如果没有则使用参数中的quarter
                 String targetQuarter = sliceQuarter != null ? sliceQuarter : (String) parameters.get("quarter");
                 
-                if (targetCubeId != null && targetQuarter != null) {
-                    // 构建绝对目录路径: D:\GISER\ard\development\cubedata\ARD_CUB_GRIDT0_OFF_RAW\cube_id\quarter\
-                    String basePath = "D:\\GISER\\ard\\development\\cubedata\\ARD_CUB_GRIDT0_OFF_RAW";
-                    String directoryPath = basePath + "\\" + targetCubeId + "\\" + targetQuarter + "\\";
+                // 验证必需字段
+                if (targetCubeId == null || targetCubeId.isEmpty()) {
+                    System.err.println("警告：切片 " + sliceFileName + " 的cubeId为空，跳过处理");
+                    continue;
+                }
+                
+                if (targetQuarter == null || targetQuarter.isEmpty()) {
+                    System.err.println("警告：切片 " + sliceFileName + " 的quarter为空，跳过处理");
+                    continue;
+                }
+                
+                // 构建绝对目录路径: D:\GISER\ard\development\cubedata\ARD_CUB_GRIDT0_OFF_RAW\cube_id\quarter\
+                String basePath = "D:\\GISER\\ard\\development\\cubedata\\ARD_CUB_GRIDT0_OFF_RAW";
+                String directoryPath = basePath + "\\" + targetCubeId + "\\" + targetQuarter + "\\";
+                
+                System.out.println("处理切片: " + sliceFileName + ", 立方体ID: " + targetCubeId + ", 季度: " + targetQuarter);
+                
+                // 根据切片标识符和季度信息，构建正确的波段文件名
+                if (sliceFileName != null && !sliceFileName.isEmpty()) {
+                    // 构建红光波段和近红外波段文件名
+                    String redBandFile = directoryPath + targetCubeId + "_" + targetQuarter + "_B4.TIF";
+                    String nirBandFile = directoryPath + targetCubeId + "_" + targetQuarter + "_B5.TIF";
                     
-                    System.out.println("处理切片: " + sliceFileName + ", 立方体: " + targetCubeId + ", 季度: " + targetQuarter);
+                    // 检查波段文件是否存在
+                    File redFile = new File(redBandFile);
+                    File nirFile = new File(nirBandFile);
                     
-                    // 根据切片标识符和季度信息，构建正确的波段文件名
-                    if (sliceFileName != null && !sliceFileName.isEmpty()) {
-                        // 构建红光波段和近红外波段文件名
-                        String redBandFile = directoryPath + targetCubeId + "_" + targetQuarter + "_B4.TIF";
-                        String nirBandFile = directoryPath + targetCubeId + "_" + targetQuarter + "_B5.TIF";
-                        
-                        // 检查波段文件是否存在
-                        File redFile = new File(redBandFile);
-                        File nirFile = new File(nirBandFile);
-                        
-                        if (redFile.exists() && nirFile.exists()) {
-                            // 只添加一个切片标识符到处理列表，而不是两个波段文件
-                            // 这样NDVIWorkflowProcessor会为每个切片生成一个NDVI结果
-                            uniqueFiles.add(sliceFileName + "|" + targetCubeId + "|" + targetQuarter);
-                            System.out.println("找到波段文件: " + redBandFile + ", " + nirBandFile);
-                            System.out.println("添加切片标识符: " + sliceFileName);
-                        } else {
-                            System.out.println("波段文件不存在: " + redBandFile + " 或 " + nirBandFile);
-                            System.out.println("跳过不存在的波段文件");
-                        }
+                    if (redFile.exists() && nirFile.exists()) {
+                        // 构建切片标识符：sliceFileName|cubeId|quarter
+                        // 这里的cubeId必须是切片自己的cubeId，这样后续处理时才能使用正确的cubeId
+                        String sliceIdentifier = sliceFileName + "|" + targetCubeId + "|" + targetQuarter;
+                        uniqueFiles.add(sliceIdentifier);
+                        System.out.println("✓ 找到波段文件: " + redBandFile + ", " + nirBandFile);
+                        System.out.println("✓ 添加切片标识符: " + sliceIdentifier);
                     } else {
-                        // 如果没有指定文件名，跳过这个切片
-                        System.out.println("跳过没有文件名的切片");
+                        System.err.println("✗ 波段文件不存在: " + redBandFile + " 或 " + nirBandFile);
+                        System.err.println("✗ 跳过不存在的波段文件");
                     }
+                } else {
+                    // 如果没有指定文件名，跳过这个切片
+                    System.err.println("✗ 跳过没有文件名的切片");
                 }
             }
             
@@ -420,7 +442,7 @@ public class WorkflowTaskController extends BaseController {
                 List<String> outputPaths = null;
                 @SuppressWarnings("unchecked")
                 Map<String, Object> calculationResult = (Map<String, Object>) result.get("calculationResult");
-                
+                    
                 if (calculationResult != null) {
                     System.out.println("Found calculationResult: " + calculationResult.keySet());
                     @SuppressWarnings("unchecked")
@@ -429,8 +451,8 @@ public class WorkflowTaskController extends BaseController {
                         outputPaths = paths;
                         System.out.println("Found " + outputPaths.size() + " output paths in calculationResult");
                     }
-                }
-                
+                }   
+
                 // 如果没有从calculationResult中找到，尝试直接从result中获取
                 if (outputPaths == null) {
                     System.out.println("Trying to get outputPaths from result...");
@@ -441,7 +463,7 @@ public class WorkflowTaskController extends BaseController {
                         System.out.println("Found " + outputPaths.size() + " output paths in result");
                     }
                 }
-                
+
                 if (outputPaths != null && !outputPaths.isEmpty()) {
                     System.out.println("开始保存 " + outputPaths.size() + " 个输出文件到数据库");
                     
@@ -453,14 +475,164 @@ public class WorkflowTaskController extends BaseController {
                         // 从输出路径中提取文件名
                         String fileName = "ndvi_result_" + System.currentTimeMillis() + "_" + i + ".tif";
                         if (outputPath != null && !outputPath.isEmpty()) {
-                            // 从完整路径中提取文件名
-                            String[] pathParts = outputPath.split("\\\\");
+                            // 从完整路径中提取文件名（支持Windows路径分隔符）
+                            String[] pathParts = outputPath.split("[\\\\/]");
                             if (pathParts.length > 0) {
                                 fileName = pathParts[pathParts.length - 1];
                             }
                             System.out.println("输出文件路径 " + (i + 1) + ": " + outputPath);
                             System.out.println("提取的文件名 " + (i + 1) + ": " + fileName);
                         }
+                        
+                        // 获取该输出路径对应的原始切片cubeId和quarter
+                        // 必须使用映射关系，确保每个结果切片的cubeId与原始切片一致
+                        String sliceCubeId = null;
+                        String sliceQuarter = null;
+                        
+                        // 方法1（必须）：从result中的映射获取原始切片的cubeId
+                        // 这个映射是在NDVIWorkflowProcessor中建立的，确保准确性
+                        // 优先从calculationResult中获取（如果存在），否则从result顶层获取
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> outputPathToCubeId = null;
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> outputPathToQuarter = null;
+                        
+                        // 首先尝试从calculationResult中获取映射
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> outputPathToBrowseImagePath = null;
+                        if (calculationResult != null) {
+                            outputPathToCubeId = (Map<String, String>) calculationResult.get("outputPathToCubeId");
+                            outputPathToQuarter = (Map<String, String>) calculationResult.get("outputPathToQuarter");
+                            outputPathToBrowseImagePath = (Map<String, String>) calculationResult.get("outputPathToBrowseImagePath");
+                        }
+                        
+                        // 如果calculationResult中没有，从result顶层获取
+                        if (outputPathToCubeId == null) {
+                            outputPathToCubeId = (Map<String, String>) result.get("outputPathToCubeId");
+                            outputPathToQuarter = (Map<String, String>) result.get("outputPathToQuarter");
+                            outputPathToBrowseImagePath = (Map<String, String>) result.get("outputPathToBrowseImagePath");
+                        }
+                        
+                        // 标准化输出路径（统一路径分隔符，便于匹配）
+                        String normalizedOutputPath = outputPath != null ? outputPath.replace("\\", "/") : null;
+                        
+                        // 尝试直接匹配
+                        boolean foundInMap = false;
+                        if (outputPathToCubeId != null && normalizedOutputPath != null) {
+                            // 先尝试直接匹配
+                            if (outputPathToCubeId.containsKey(outputPath)) {
+                                sliceCubeId = outputPathToCubeId.get(outputPath);
+                                sliceQuarter = outputPathToQuarter != null ? outputPathToQuarter.get(outputPath) : null;
+                                foundInMap = true;
+                                System.out.println("✓ 从映射获取原始切片信息（直接匹配） - cubeId: " + sliceCubeId + ", quarter: " + sliceQuarter);
+                            } 
+                            // 如果直接匹配失败，尝试标准化路径匹配
+                            else if (outputPathToCubeId.containsKey(normalizedOutputPath)) {
+                                sliceCubeId = outputPathToCubeId.get(normalizedOutputPath);
+                                sliceQuarter = outputPathToQuarter != null ? outputPathToQuarter.get(normalizedOutputPath) : null;
+                                foundInMap = true;
+                                System.out.println("✓ 从映射获取原始切片信息（标准化匹配） - cubeId: " + sliceCubeId + ", quarter: " + sliceQuarter);
+                            }
+                            // 如果还是失败，尝试反向标准化（将/转为\）
+                            else {
+                                String reversedPath = outputPath.replace("/", "\\");
+                                if (outputPathToCubeId.containsKey(reversedPath)) {
+                                    sliceCubeId = outputPathToCubeId.get(reversedPath);
+                                    sliceQuarter = outputPathToQuarter != null ? outputPathToQuarter.get(reversedPath) : null;
+                                    foundInMap = true;
+                                    System.out.println("✓ 从映射获取原始切片信息（反向标准化匹配） - cubeId: " + sliceCubeId + ", quarter: " + sliceQuarter);
+                                }
+                            }
+                        }
+                        
+                        if (!foundInMap) {
+                            System.err.println("❌ 警告：无法从映射中获取输出路径对应的cubeId！");
+                            System.err.println("输出路径（原始）: " + outputPath);
+                            System.err.println("输出路径（标准化）: " + normalizedOutputPath);
+                            System.err.println("映射是否存在: " + (outputPathToCubeId != null));
+                            if (outputPathToCubeId != null) {
+                                System.err.println("映射大小: " + outputPathToCubeId.size());
+                                System.err.println("映射中的键（前5个）:");
+                                int count = 0;
+                                for (String key : outputPathToCubeId.keySet()) {
+                                    if (count++ < 5) {
+                                        System.err.println("  [" + count + "] " + key + " -> cubeId: " + outputPathToCubeId.get(key));
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                // 检查是否有文件名匹配的键（文件名是唯一的）
+                                // 注意：fileName 已在前面定义，这里使用 fileName 变量
+                                String outputFileName = normalizedOutputPath != null ? normalizedOutputPath.substring(normalizedOutputPath.lastIndexOf("/") + 1) : null;
+                                if (outputFileName != null) {
+                                    System.err.println("尝试通过文件名匹配: " + outputFileName);
+                                    for (String key : outputPathToCubeId.keySet()) {
+                                        if (key.contains(outputFileName)) {
+                                            sliceCubeId = outputPathToCubeId.get(key);
+                                            sliceQuarter = outputPathToQuarter != null ? outputPathToQuarter.get(key) : null;
+                                            foundInMap = true;
+                                            System.err.println("✓ 通过文件名匹配找到映射 - cubeId: " + sliceCubeId + ", quarter: " + sliceQuarter);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 方法2（备选）：从selectedSlices中按索引获取（这是必须的，因为映射可能失败）
+                            // 注意：outputPaths的顺序应该与sliceFilePaths的处理顺序一致
+                            // 而sliceFilePaths是从selectedSlices按顺序构建的，所以索引应该匹配
+                            if (!foundInMap) {
+                                @SuppressWarnings("unchecked")
+                                List<Map<String, Object>> selectedSlices = (List<Map<String, Object>>) parameters.get("selectedSlices");
+                                if (selectedSlices != null && i < selectedSlices.size()) {
+                                    Map<String, Object> slice = selectedSlices.get(i);
+                                    if (slice != null) {
+                                        sliceCubeId = (String) slice.get("cubeId");
+                                        sliceQuarter = sliceQuarter != null ? sliceQuarter : (String) slice.get("quarter");
+                                        foundInMap = true;
+                                        System.out.println("✓ 从selectedSlices[索引 " + i + "] 获取原始切片信息 - cubeId: " + sliceCubeId + ", quarter: " + sliceQuarter);
+                                    } else {
+                                        System.err.println("警告：selectedSlices[" + i + "] 为null");
+                                    }
+                                } else {
+                                    System.err.println("警告：索引 " + i + " 超出 selectedSlices 范围（大小: " + (selectedSlices != null ? selectedSlices.size() : 0) + "）");
+                                }
+                            }
+                        }
+                        
+                        // 绝对不使用路径提取或默认值，必须从映射或selectedSlices获取
+                        if (sliceCubeId == null) {
+                            System.err.println("❌ 错误：无法确定第 " + (i + 1) + " 个切片的原始cubeId，跳过保存！");
+                            System.err.println("输出路径: " + outputPath);
+                            System.err.println("映射大小: " + (outputPathToCubeId != null ? outputPathToCubeId.size() : 0));
+                            System.err.println("selectedSlices大小: " + (parameters.get("selectedSlices") != null ? ((List<?>) parameters.get("selectedSlices")).size() : 0));
+                            System.err.println("这会导致数据不一致，请检查代码逻辑");
+                            continue;
+                        }
+                        
+                        // 获取预览图路径
+                        String browseImagePath = null;
+                        if (outputPathToBrowseImagePath != null && outputPath != null) {
+                            // 尝试多种路径格式匹配
+                            if (outputPathToBrowseImagePath.containsKey(outputPath)) {
+                                browseImagePath = outputPathToBrowseImagePath.get(outputPath);
+                            } else if (normalizedOutputPath != null && outputPathToBrowseImagePath.containsKey(normalizedOutputPath)) {
+                                browseImagePath = outputPathToBrowseImagePath.get(normalizedOutputPath);
+                            } else {
+                                String reversedPath = outputPath.replace("/", "\\");
+                                if (outputPathToBrowseImagePath.containsKey(reversedPath)) {
+                                    browseImagePath = outputPathToBrowseImagePath.get(reversedPath);
+                                }
+                            }
+                        }
+                        
+                        System.out.println("═══════════════════════════════════════");
+                        System.out.println("保存结果切片到数据库");
+                        System.out.println("输出路径: " + outputPath);
+                        System.out.println("原始切片cubeId: " + sliceCubeId);
+                        System.out.println("原始切片quarter: " + sliceQuarter);
+                        System.out.println("预览图路径: " + (browseImagePath != null ? browseImagePath : "未找到"));
+                        System.out.println("═══════════════════════════════════════");
                         
                         // 创建计算结果对象（用于兼容原有接口）
                         Map<String, Object> calcResult = new HashMap<>();
@@ -469,11 +641,24 @@ public class WorkflowTaskController extends BaseController {
                         calcResult.put("meanValue", 0.0);
                         calcResult.put("minValue", 0.0);
                         calcResult.put("maxValue", 0.0);
+                        if (browseImagePath != null) {
+                            calcResult.put("browseImagePath", browseImagePath);
+                        }
                         
-                        // 保存结果到数据库
-                        boolean saveResult = saveResultToDatabase(taskId, cubeId, algorithmCode, outputPath, fileName, quarter, calcResult);
+                        // 保存结果到数据库（使用每个切片对应的cubeId）
+                        boolean saveResult = saveResultToDatabase(taskId, sliceCubeId, algorithmCode, outputPath, fileName, sliceQuarter, calcResult);
                         
-                        if (saveResult) {
+            if (saveResult) {
+                try {
+                    String __metaUsername = null;
+                    try { __metaUsername = com.project.common.utils.SecurityUtils.getUsername(); } catch (Exception ignore) {}
+                    if (__metaUsername == null || __metaUsername.isEmpty()) __metaUsername = "default_user";
+                    String gridId = sliceCubeId != null ? sliceCubeId.replace("GRID_CUBE_", "") : null;
+                    String browsePath = (String) calculationResult.get("browseImagePath");
+                    updateUserGridMetadata(__metaUsername, gridId, fileName, algorithmCode, outputPath, browsePath);
+                } catch (Exception metaEx) {
+                    System.err.println("更新用户元数据文件失败: " + metaEx.getMessage());
+                }
                             System.out.println("第 " + (i + 1) + " 个切片插入数据库成功!");
                         } else {
                             System.err.println("第 " + (i + 1) + " 个切片插入数据库失败!");
@@ -583,6 +768,11 @@ public class WorkflowTaskController extends BaseController {
     
     @Autowired
     private com.project.ard.dataretrieval.service.CubeTaskStepService cubeTaskStepService;
+
+    @Autowired
+    private com.project.ard.dataretrieval.config.UserDataConfig userDataConfig;
+
+    private final com.fasterxml.jackson.databind.ObjectMapper __metaMapper = new com.fasterxml.jackson.databind.ObjectMapper();
     
     /**
      * 保存计算结果到数据库
@@ -639,6 +829,28 @@ public class WorkflowTaskController extends BaseController {
                 resultSliceInfo.setResultDesc("NDVI植被指数分析结果");
             }
             
+            // 设置预览图路径（无论calculationResult是否为null都尝试设置）
+            String browseImagePath = null;
+            if (calculationResult != null) {
+                browseImagePath = (String) calculationResult.get("browseImagePath");
+                if (browseImagePath != null && !browseImagePath.isEmpty()) {
+                    resultSliceInfo.setBrowseImagePath(browseImagePath);
+                    System.out.println("✓ 设置预览图路径到数据库: " + browseImagePath);
+                } else {
+                    System.out.println("✗ calculationResult中预览图路径为空或null");
+                }
+            } else {
+                System.out.println("✗ calculationResult为null，无法获取预览图路径");
+            }
+            
+            // 调试：打印最终要保存的对象的所有字段
+            System.out.println("=== 保存到数据库的对象信息 ===");
+            System.out.println("cubeId: " + resultSliceInfo.getCubeId());
+            System.out.println("fileName: " + resultSliceInfo.getFileName());
+            System.out.println("resultSlicePath: " + resultSliceInfo.getResultSlicePath());
+            System.out.println("browseImagePath: " + resultSliceInfo.getBrowseImagePath());
+            System.out.println("===============================");
+            
             // 保存到数据库
             boolean saveResult = cubeResultSliceInfoService.saveResultSliceInfo(resultSliceInfo);
             
@@ -655,5 +867,100 @@ public class WorkflowTaskController extends BaseController {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * 将新生成的结果切片追加到用户格网的元数据文件中
+     */
+    private void updateUserGridMetadata(String username, String gridId, String fileName,
+                                        String algorithmCode, String resultPath, String previewPath) {
+        if (username == null || gridId == null) return;
+        try {
+            String userRoot = userDataConfig.getDataRootPath();
+            String userCubeDir = "ARD_CUB_GRIDT0_" + username + "_RAW";
+            Path gridDir = Paths.get(userRoot, username, userCubeDir, gridId);
+            if (!Files.exists(gridDir)) {
+                Files.createDirectories(gridDir);
+            }
+            Path metaPath = gridDir.resolve("metadata.json");
+
+            com.fasterxml.jackson.databind.node.ObjectNode root;
+            if (Files.exists(metaPath)) {
+                root = (com.fasterxml.jackson.databind.node.ObjectNode) __metaMapper.readTree(metaPath.toFile());
+            } else {
+                root = __metaMapper.createObjectNode();
+                root.put("cube_id", "GRID_CUBE_" + gridId);
+                root.put("grid_id", gridId);
+                root.put("secretlevel", "public");
+                root.put("description", "用户格网元数据");
+                root.set("files", __metaMapper.createArrayNode());
+                com.fasterxml.jackson.databind.node.ObjectNode stats = __metaMapper.createObjectNode();
+                stats.put("total_files", 0);
+                stats.put("original_files", 0);
+                stats.put("derived_files", 0);
+                root.set("statistics", stats);
+                root.put("created", OffsetDateTime.now().toString());
+            }
+
+            com.fasterxml.jackson.databind.node.ArrayNode filesArr = (com.fasterxml.jackson.databind.node.ArrayNode) root.withArray("files");
+            com.fasterxml.jackson.databind.node.ObjectNode newFile = __metaMapper.createObjectNode();
+            newFile.put("filename", fileName != null ? fileName : Paths.get(resultPath).getFileName().toString());
+            // 根据算法类型填写类型与产品编码
+            String fileType = "衍生数据";
+            String productType = "03";
+            if ("NDVI_ANALYSIS".equalsIgnoreCase(algorithmCode)) {
+                fileType = "衍生数据-植被指数";
+                productType = "03";
+            }
+            newFile.put("file_type", fileType);
+            newFile.put("imaging_time", OffsetDateTime.now().toString());
+            newFile.put("storage_time", OffsetDateTime.now().toString());
+            newFile.put("product_type", productType);
+            newFile.put("description", fileType);
+            newFile.put("season", quarterOrEmptyFromPath(resultPath));
+            newFile.put("resolution", "30m");
+            newFile.put("location", "用户数据中心");
+            // 额外挂上路径
+            newFile.put("result_path", normalizeSlashes(resultPath));
+            if (previewPath != null) newFile.put("preview_path", normalizeSlashes(previewPath));
+
+            filesArr.add(newFile);
+
+            // 更新统计
+            com.fasterxml.jackson.databind.node.ObjectNode stats = (com.fasterxml.jackson.databind.node.ObjectNode) root.with("statistics");
+            int total = stats.path("total_files").asInt(0) + 1;
+            int derived = stats.path("derived_files").asInt(0) + 1;
+            stats.put("total_files", total);
+            stats.put("derived_files", derived);
+            root.put("updated", OffsetDateTime.now().toString());
+
+            // 写回文件
+            __metaMapper.writerWithDefaultPrettyPrinter().writeValue(metaPath.toFile(), root);
+            System.out.println("✓ 元数据文件已更新: " + metaPath);
+        } catch (Exception e) {
+            System.err.println("更新元数据文件异常: " + e.getMessage());
+        }
+    }
+
+    private String quarterOrEmptyFromPath(String path) {
+        try {
+            if (path == null) return "";
+            String p = path.replace('\\','/');
+            // 例如 .../2025q1/...
+            int idx = p.indexOf("/202");
+            if (idx >= 0) {
+                String sub = p.substring(idx+1);
+                int slash = sub.indexOf('/');
+                if (slash > 0) {
+                    String token = sub.substring(0, slash);
+                    if (token.toLowerCase().matches("\\d{4}q[1-4]")) return token;
+                }
+            }
+        } catch (Exception ignore) {}
+        return "";
+    }
+
+    private String normalizeSlashes(String s) {
+        return s == null ? null : s.replace('\\','/');
     }
 }
