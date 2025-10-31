@@ -74,7 +74,14 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
             QueryWrapper<Cube> queryWrapper = buildQueryWrapper(request);
             
             // 执行分页查询
+            log.info("执行数据库查询，当前页: {}, 每页大小: {}", current, size);
             IPage<Cube> cubePage = cubeMapper.selectPage(page, queryWrapper);
+            
+            log.info("数据库查询完成，查询到 {} 条记录", cubePage.getRecords().size());
+            if (cubePage.getRecords().size() == 0 && request.getCubeName() != null && !request.getCubeName().trim().isEmpty()) {
+                log.warn("⚠️ 警告：使用cubeName='{}'进行搜索，但未查询到任何结果", request.getCubeName().trim());
+                log.warn("建议检查：1) 数据库表中是否存在该cube_id或grid_id 2) 字段名是否正确 3) 数据是否匹配");
+            }
             
             // 转换为响应对象
             List<CubeRetrievalResponse> records = cubePage.getRecords().stream()
@@ -104,12 +111,34 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
     private QueryWrapper<Cube> buildQueryWrapper(CubeRetrievalRequest request) {
         QueryWrapper<Cube> queryWrapper = new QueryWrapper<>();
         
-        // 根据格网ID筛选
+        log.info("===== 开始构建查询条件 =====");
+        log.info("请求参数 - cubeName: {}", request.getCubeName());
+        
+        // 根据立方体ID或格网ID筛选（优先处理，确保ID搜索能正常工作）
         if (request.getCubeName() != null && !request.getCubeName().trim().isEmpty()) {
-            queryWrapper.like("grid_id", request.getCubeName().trim());
-            log.info("应用格网ID筛选: {}", request.getCubeName());
+            String searchKeyword = request.getCubeName().trim();
+            log.info("检测到立方体ID/格网ID搜索关键词: '{}'", searchKeyword);
+            
+            // 同时支持cube_id和grid_id的搜索：精确匹配cube_id，模糊匹配grid_id和cube_id
+            // 使用nested包装确保条件组合正确
+            queryWrapper.and(wrapper -> {
+                wrapper.eq("cube_id", searchKeyword)  // 精确匹配cube_id（优先）
+                      .or()
+                      .like("cube_id", searchKeyword)  // 模糊匹配cube_id（部分ID）
+                      .or()
+                      .like("grid_id", searchKeyword); // 模糊匹配grid_id
+            });
+            
+            log.info("✓ 已应用立方体ID/格网ID筛选条件");
+            log.info("查询条件SQL片段: (cube_id = '{}' OR cube_id LIKE '%{}%' OR grid_id LIKE '%{}%')", 
+                    searchKeyword, searchKeyword, searchKeyword);
         } else {
-            log.info("格网ID为空，跳过名称筛选");
+            log.info("✗ 立方体ID/格网ID为空或null，跳过ID筛选");
+            if (request.getCubeName() == null) {
+                log.info("  - cubeName字段为null");
+            } else {
+                log.info("  - cubeName字段值为空字符串或仅包含空格");
+            }
         }
         
         
@@ -196,6 +225,11 @@ public class CubeServiceImpl extends ServiceImpl<CubeMapper, Cube> implements Cu
         
         // 按创建时间倒序排列
         queryWrapper.orderByDesc("created");
+        
+        // 输出查询条件摘要（用于调试）
+        log.info("===== 查询条件构建完成 =====");
+        log.info("查询条件摘要: {}", queryWrapper.toString());
+        log.info("============================");
         
         return queryWrapper;
     }

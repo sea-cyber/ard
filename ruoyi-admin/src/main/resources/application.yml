@@ -45,7 +45,9 @@ ard:
   user:
     # 用户数据根目录（用户分析结果存储目录）
     data-root-path: D:/GISER/ard/development/cubedata/ARD_CUB_GRIDT0_USR
-
+  viz:
+    # 预览图根存储目录（按需修改，支持不同环境覆盖）
+    root-path: D:/GISER/ard/development/cubedata/ARD_CUB_GRIDT0_VIZ
 
 # 用户配置
 user:

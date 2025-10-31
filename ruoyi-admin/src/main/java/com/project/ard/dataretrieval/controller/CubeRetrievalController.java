@@ -17,7 +17,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 立方体数据检索控制器
@@ -48,6 +50,17 @@ public class CubeRetrievalController extends BaseController {
         try {
             logger.info("收到立方体数据搜索请求: {}", request);
             logger.info("请求参数类型: {}", request.getClass().getName());
+            
+            // 详细记录请求参数
+            if (request != null) {
+                logger.info("===== 立方体搜索请求参数详情 =====");
+                logger.info("cubeName: {}", request.getCubeName());
+                logger.info("region: {}", request.getRegion());
+                logger.info("timeRange: {}", request.getTimeRange());
+                logger.info("boundary: {}", request.getBoundary());
+                logger.info("page: {}", request.getPage());
+                logger.info("===================================");
+            }
 
             // 验证请求参数
             if (request == null) {
@@ -206,6 +219,56 @@ public class CubeRetrievalController extends BaseController {
         } catch (Exception e) {
             logger.error("查询用户结果切片信息失败，立方体ID: {}", cubeId, e);
             throw new RuntimeException("查询用户结果切片信息失败", e);
+        }
+    }
+    
+    /**
+     * 获取原始数据切片的预览图URL
+     * 保持原始路径格式，不做路径转换
+     * 
+     * @param sliceId 切片ID
+     * @return 预览图URL
+     */
+    @GetMapping("/slice/browse/{sliceId}")
+    public AjaxResult getSliceBrowseImage(@PathVariable Integer sliceId) {
+        try {
+            logger.info("收到切片预览图请求，切片ID: {}", sliceId);
+            
+            // 获取切片信息
+            CubeSliceResponse slice = cubeSliceService.getSliceById(sliceId);
+            if (slice == null) {
+                logger.warn("未找到切片信息，切片ID: {}", sliceId);
+                return AjaxResult.error("未找到切片信息，切片ID: " + sliceId);
+            }
+            
+            // 检查是否有浏览图路径
+            if (slice.getBrowseImagePath() == null || slice.getBrowseImagePath().isEmpty()) {
+                logger.warn("切片无浏览图路径，切片ID: {}", sliceId);
+                return AjaxResult.error("该切片暂无预览图");
+            }
+            
+            // 直接使用原始路径，不做任何转换
+            // 保持原有格式：/default_user/ARD_CUB_GRIDT0_default_user_VIZ/...
+            String originalPath = slice.getBrowseImagePath();
+            logger.info("使用原始预览图路径 - 切片ID: {}, cubeId: {}, browseImagePath: {}", 
+                    sliceId, slice.getCubeId(), originalPath);
+            
+            // 构建访问URL（使用common/view/resource接口）
+            String baseUrl = "/dev-api/common/view/resource";
+            String browseImageUrl = baseUrl + "?resource=" + java.net.URLEncoder.encode(originalPath, "UTF-8");
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("browseImageUrl", browseImageUrl);
+            result.put("browseImagePath", originalPath);
+            result.put("sliceId", sliceId);
+            result.put("cubeId", slice.getCubeId());
+            
+            logger.info("预览图URL构建成功，切片ID: {}, URL: {}", sliceId, browseImageUrl);
+            return AjaxResult.success(result);
+            
+        } catch (Exception e) {
+            logger.error("获取切片预览图失败，切片ID: {}", sliceId, e);
+            return AjaxResult.error("获取切片预览图失败: " + e.getMessage());
         }
     }
 }
