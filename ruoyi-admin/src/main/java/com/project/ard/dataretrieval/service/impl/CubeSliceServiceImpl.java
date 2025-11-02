@@ -88,10 +88,16 @@ public class CubeSliceServiceImpl implements CubeSliceService {
             return path;
         }
         
-        // 如果已经是相对路径（以/开头且不包含Windows盘符），直接返回
+        // 如果已经是相对路径（以/开头且不包含Windows盘符），检查格式
         if (path.startsWith("/") && !path.matches("^[A-Za-z]:[/\\\\].*")) {
-            // 验证是否是有效的相对路径格式（应该包含 /default_user 或用户目录模式）
-            if (path.contains("/default_user") || path.matches("/[^/]+/ARD_CUB_GRIDT0_[^/]+_VIZ/.*")) {
+            // 验证是否是有效的相对路径格式：
+            // 1. 包含 /default_user（用户数据路径）
+            // 2. 包含用户VIZ目录模式
+            // 3. 或者是 GRID_CUBE_xxx/文件名 格式（原始切片预览图）
+            if (path.contains("/default_user") 
+                || path.matches("/[^/]+/ARD_CUB_GRIDT0_[^/]+_VIZ/.*")
+                || path.matches("/GRID_CUBE_[^/]+/.*\\.(jpg|jpeg|png|JPG|JPEG|PNG)$")) {
+                log.debug("已识别为相对路径: {}", path);
                 return path;
             }
         }
@@ -126,6 +132,25 @@ public class CubeSliceServiceImpl implements CubeSliceService {
             String relativePath = vizMatcher.group(1);
             log.info("路径转换（VIZ目录模式）: {} -> {}", path, relativePath);
             return relativePath;
+        }
+        
+        // 如果是绝对路径且包含 ARD_CUB_GRIDT0_VIZ 目录，尝试提取从 VIZ 目录下第一个 cubeId 开始的部分
+        // 例如：D:/.../ARD_CUB_GRIDT0_VIZ/GRID_CUBE_T0_J49E016017/xxx.jpg
+        // 转换为：/GRID_CUBE_T0_J49E016017/xxx.jpg
+        int vizDirIndex = normalizedPath.indexOf("/ARD_CUB_GRIDT0_VIZ/");
+        if (vizDirIndex >= 0) {
+            int afterVizIndex = vizDirIndex + "/ARD_CUB_GRIDT0_VIZ/".length();
+            if (afterVizIndex < normalizedPath.length()) {
+                String relativePath = "/" + normalizedPath.substring(afterVizIndex);
+                log.info("路径转换（VIZ根目录）: {} -> {}", path, relativePath);
+                return relativePath;
+            }
+        }
+        
+        // 如果路径已经是 GRID_CUBE_xxx/文件名 格式（以/GRID_CUBE_开头），直接返回
+        if (normalizedPath.startsWith("/GRID_CUBE_") && normalizedPath.contains("/")) {
+            log.debug("已识别为GRID_CUBE相对路径格式: {}", path);
+            return path;
         }
         
         // 如果无法转换，返回原路径（可能是相对路径或其他格式）

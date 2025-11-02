@@ -109,6 +109,9 @@ public class SecurityConfig
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // 注解标记允许匿名访问的url
             .authorizeHttpRequests((requests) -> {
+                // 预览图接口匿名访问（必须放在最前面，确保优先匹配）
+                requests.antMatchers(HttpMethod.GET, "/ard/dataretrieval/cube/viz").permitAll();
+                // 先处理所有通过 @Anonymous 注解标记的URL（包含预览图接口）
                 permitAllUrl.getUrls().forEach(url -> requests.antMatchers(url).permitAll());
                 // 对于登录login 注册register 验证码captchaImage 允许匿名访问
                 requests.antMatchers("/login", "/register", "/captchaImage").permitAll()

@@ -20,6 +20,7 @@ import com.project.common.utils.file.FileUploadUtils;
 import com.project.common.utils.file.FileUtils;
 import com.project.framework.config.ServerConfig;
 import com.project.ard.dataretrieval.config.UserDataConfig;
+import com.project.ard.dataretrieval.config.VizConfig;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -41,6 +42,9 @@ public class CommonController
     
     @Autowired
     private UserDataConfig userDataConfig;
+    
+    @Autowired
+    private VizConfig vizConfig;
 
     private static final String FILE_DELIMETER = ",";
 
@@ -165,20 +169,39 @@ public class CommonController
                 resource.toLowerCase().endsWith(".webp")
             );
             
-            // 如果是用户数据目录下的文件，使用用户数据根目录
+            // 根据路径特征判断从哪个根目录读取文件
             String downloadPath;
-            if (resource != null && (resource.contains("ARD_CUB_GRIDT0_USR") || resource.startsWith("/default_user"))) {
-                // 用户数据文件，使用用户数据根目录配置
-                // 从配置获取用户数据根目录
-                String userDataRootPath = userDataConfig.getDataRootPath();
-                // 移除开头的斜杠（如果有）
+            if (resource == null || resource.isEmpty()) {
+                throw new Exception("资源路径不能为空");
+            }
+            
+            // 1. 绝对路径（如 D:/... 或 D:\...），直接使用
+            if (resource.matches("^[A-Za-z]:[\\\\/].*")) {
+                downloadPath = resource.replace('\\', '/');
+            }
+            // 2. 原始切片预览图路径（格式：/GRID_CUBE_xxx/文件名.jpg），从预览图根目录读取
+            else if (resource.matches("^/GRID_CUBE_[^/]+/.*\\.(jpg|jpeg|png|JPG|JPEG|PNG)$")) {
+                String vizRootPath = vizConfig.getRootPath();
                 String resourcePath = resource.startsWith("/") ? resource.substring(1) : resource;
-                downloadPath = userDataRootPath + "/" + resourcePath;
-            } else {
-                // 本地资源路径（原有逻辑）
+                downloadPath = vizRootPath.replace('\\', '/') + "/" + resourcePath;
+                log.debug("原始切片预览图路径 - 预览图根目录: {}, 资源路径: {}, 完整路径: {}", 
+                        vizRootPath, resourcePath, downloadPath);
+            }
+            // 3. 用户数据路径（包含 /default_user 或用户目录模式），从用户数据根目录读取
+            else if (resource.contains("ARD_CUB_GRIDT0_USR") || resource.startsWith("/default_user") 
+                    || resource.matches("/[^/]+/ARD_CUB_GRIDT0_[^/]+_(RAW|VIZ)/.*")) {
+                String userDataRootPath = userDataConfig.getDataRootPath();
+                String resourcePath = resource.startsWith("/") ? resource.substring(1) : resource;
+                downloadPath = userDataRootPath.replace('\\', '/') + "/" + resourcePath;
+                log.debug("用户数据路径 - 用户数据根目录: {}, 资源路径: {}, 完整路径: {}", 
+                        userDataRootPath, resourcePath, downloadPath);
+            }
+            // 4. 其他情况，使用默认的 profile 路径
+            else {
                 String localPath = RuoYiConfig.getProfile();
-                // 数据库资源地址
                 downloadPath = localPath + FileUtils.stripPrefix(resource);
+                log.debug("默认路径 - profile: {}, 资源路径: {}, 完整路径: {}", 
+                        localPath, resource, downloadPath);
             }
             
             // 下载名称
@@ -226,18 +249,39 @@ public class CommonController
                 throw new Exception(StringUtils.format("资源文件({})非法，不允许预览。 ", resource));
             }
 
-            // 解析物理路径：优先支持绝对路径（Windows），否则按用户数据根或profile解析
+            // 解析物理路径：根据路径特征判断从哪个根目录读取
             String downloadPath;
-            if (resource != null && resource.matches("^[A-Za-z]:[\\\\/].*")) {
-                // 绝对路径（如 D:/... 或 D:\...）
-                downloadPath = resource;
-            } else if (resource != null && (resource.contains("ARD_CUB_GRIDT0_USR") || resource.startsWith("/default_user"))) {
+            if (resource == null || resource.isEmpty()) {
+                throw new Exception("资源路径不能为空");
+            }
+            
+            // 1. 绝对路径（如 D:/... 或 D:\...），直接使用
+            if (resource.matches("^[A-Za-z]:[\\\\/].*")) {
+                downloadPath = resource.replace('\\', '/');
+            }
+            // 2. 原始切片预览图路径（格式：/GRID_CUBE_xxx/文件名.jpg），从预览图根目录读取
+            else if (resource.matches("^/GRID_CUBE_[^/]+/.*\\.(jpg|jpeg|png|JPG|JPEG|PNG)$")) {
+                String vizRootPath = vizConfig.getRootPath();
+                String resourcePath = resource.startsWith("/") ? resource.substring(1) : resource;
+                downloadPath = vizRootPath.replace('\\', '/') + "/" + resourcePath;
+                log.debug("原始切片预览图路径 - 预览图根目录: {}, 资源路径: {}, 完整路径: {}", 
+                        vizRootPath, resourcePath, downloadPath);
+            }
+            // 3. 用户数据路径（包含 /default_user 或用户目录模式），从用户数据根目录读取
+            else if (resource.contains("ARD_CUB_GRIDT0_USR") || resource.startsWith("/default_user") 
+                    || resource.matches("/[^/]+/ARD_CUB_GRIDT0_[^/]+_(RAW|VIZ)/.*")) {
                 String userDataRootPath = userDataConfig.getDataRootPath();
                 String resourcePath = resource.startsWith("/") ? resource.substring(1) : resource;
-                downloadPath = userDataRootPath + "/" + resourcePath;
-            } else {
+                downloadPath = userDataRootPath.replace('\\', '/') + "/" + resourcePath;
+                log.debug("用户数据路径 - 用户数据根目录: {}, 资源路径: {}, 完整路径: {}", 
+                        userDataRootPath, resourcePath, downloadPath);
+            }
+            // 4. 其他情况，使用默认的 profile 路径
+            else {
                 String localPath = RuoYiConfig.getProfile();
                 downloadPath = localPath + FileUtils.stripPrefix(resource);
+                log.debug("默认路径 - profile: {}, 资源路径: {}, 完整路径: {}", 
+                        localPath, resource, downloadPath);
             }
 
             // 物理文件检查

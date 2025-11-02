@@ -12,10 +12,16 @@ import com.project.ard.dataretrieval.service.CubeService;
 import com.project.ard.dataretrieval.service.CubeSliceService;
 import com.project.ard.dataretrieval.service.CubeResultSliceInfoService;
 import com.project.ard.dataretrieval.domain.CubeResultSliceInfo;
+import com.project.ard.dataretrieval.config.VizConfig;
 import com.project.common.utils.SecurityUtils;
+import com.project.common.annotation.Anonymous;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +44,9 @@ public class CubeRetrievalController extends BaseController {
     
     @Autowired
     private CubeResultSliceInfoService cubeResultSliceInfoService;
+    
+    @Autowired
+    private VizConfig vizConfig;
 
     /**
      * 搜索立方体数据
@@ -269,6 +278,93 @@ public class CubeRetrievalController extends BaseController {
         } catch (Exception e) {
             logger.error("获取切片预览图失败，切片ID: {}", sliceId, e);
             return AjaxResult.error("获取切片预览图失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取预览图文件
+     * 从 ard.viz.root-path 根目录读取文件
+     * 
+     * @param imagePath 预览图相对路径（例如：GRID_CUBE_T0_J49E016017/ndvi_result_1761808377681.jpg）
+     * @param response HTTP响应
+     */
+    @Anonymous
+    @GetMapping("/viz")
+    public void getVizImage(@RequestParam("imagePath") String imagePath, HttpServletResponse response) {
+        try {
+            logger.info("收到预览图请求，原始imagePath参数: {}", imagePath);
+            
+            if (imagePath == null || imagePath.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                logger.warn("预览图路径不能为空");
+                return;
+            }
+            
+            // URL解码路径参数（处理 %2F 等编码字符）
+            String decodedPath = java.net.URLDecoder.decode(imagePath, "UTF-8");
+            logger.info("URL解码后的路径: {}", decodedPath);
+            
+            // 获取预览图根目录
+            String vizRootPath = vizConfig.getRootPath();
+            logger.info("预览图根目录: {}", vizRootPath);
+            
+            // 处理路径，统一路径分隔符，去掉开头的斜杠
+            String cleanPath = decodedPath.replace('\\', '/');
+            if (cleanPath.startsWith("/")) {
+                cleanPath = cleanPath.substring(1);
+            }
+            logger.info("清理后的路径: {}", cleanPath);
+            
+            // 构建完整文件路径
+            String fullPath = vizRootPath.replace('\\', '/') + "/" + cleanPath;
+            logger.info("完整文件路径: {}", fullPath);
+            
+            // 检查文件是否存在
+            File file = new File(fullPath);
+            if (!file.exists() || !file.isFile()) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                logger.warn("预览图文件不存在: {}", fullPath);
+                return;
+            }
+            
+            // 设置响应头 - 根据文件扩展名设置Content-Type
+            response.setContentType("image/jpeg"); // 默认jpeg
+            String lowerPath = cleanPath.toLowerCase();
+            if (lowerPath.endsWith(".png")) {
+                response.setContentType("image/png");
+            } else if (lowerPath.endsWith(".gif")) {
+                response.setContentType("image/gif");
+            } else if (lowerPath.endsWith(".bmp")) {
+                response.setContentType("image/bmp");
+            } else if (lowerPath.endsWith(".webp")) {
+                response.setContentType("image/webp");
+            } else if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) {
+                response.setContentType("image/jpeg");
+            }
+            
+            response.setHeader("Content-Disposition", "inline; filename=\"" + file.getName() + "\"");
+            response.setHeader("Cache-Control", "public, max-age=604800");
+            response.setHeader("Access-Control-Allow-Origin", "*");
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+            response.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+            response.setContentLengthLong(file.length());
+            
+            // 输出文件内容
+            try (FileInputStream fis = new FileInputStream(file);
+                 OutputStream os = response.getOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    os.write(buffer, 0, bytesRead);
+                }
+                os.flush();
+            }
+            
+            logger.info("预览图文件成功返回: {}", fullPath);
+            
+        } catch (Exception e) {
+            logger.error("获取预览图失败，路径: {}", imagePath, e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
 }
