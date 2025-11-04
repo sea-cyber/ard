@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS public.cube_task_info (
     browse_image_path text,
     CONSTRAINT cube_task_info_pkey PRIMARY KEY (task_id),
     CONSTRAINT fk_task_user FOREIGN KEY (user_id) REFERENCES public.sys_user (user_id) MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
+    -- 注意：workflow_id 字段不设置外键约束，允许存储任意值（包括压缩算法名称等）
+    -- 这样可以避免数据导入任务时将压缩算法名称作为 workflow_id 时出现外键约束错误
 ) TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS public.cube_task_info OWNER to postgres;

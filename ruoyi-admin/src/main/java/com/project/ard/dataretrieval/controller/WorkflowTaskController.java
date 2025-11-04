@@ -3,6 +3,7 @@ package com.project.ard.dataretrieval.controller;
 import com.project.ard.dataretrieval.entity.CubeWorkflow;
 import com.project.ard.dataretrieval.service.ICubeWorkflowService;
 import com.project.ard.dataretrieval.service.WorkflowProcessorManager;
+import com.project.ard.dataretrieval.service.WorkflowProcessor;
 import com.project.common.core.controller.BaseController;
 import com.project.common.core.domain.AjaxResult;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -153,17 +154,41 @@ public class WorkflowTaskController extends BaseController {
                 // 更新任务状态为运行中
                 cubeTaskInfoService.updateTaskStatus(taskId, "running", 10, null);
                 
-                // 开始任务拆分步骤
-                cubeTaskStepService.startStep(taskId, 2, "开始任务拆分，分析切片位置分布");
+                // ========== 第一步：数据准备 ==========
+                // 开始数据准备步骤
+                cubeTaskStepService.startStep(taskId, 1, "开始检索切片数据，检查文件是否存在");
                 
-                // 构建计算参数
+                // 构建计算参数（用于获取cubeId等信息）
                 Map<String, Object> parameters = buildCalculationParameters(request, workflow);
                 
-                // 将selectedSlices添加到parameters中，以便在保存结果时使用
+                // 将selectedSlices添加到parameters中
                 parameters.put("selectedSlices", selectedSlices);
                 
-                // 获取切片文件路径（修改为新的路径结构）
+                // 检查切片文件是否存在
                 List<String> sliceFiles = extractSliceFilePathsForCalculation(selectedSlices, parameters);
+                
+                // 如果没有找到任何切片文件，标记第一步为失败并停止
+                if (sliceFiles == null || sliceFiles.isEmpty()) {
+                    String errorMessage = "未找到切片文件，文件不存在或路径不正确";
+                    System.err.println("数据准备失败 - 任务ID: " + taskId);
+                    System.err.println("错误信息: " + errorMessage);
+                    
+                    // 标记第一步（数据准备）为失败
+                    cubeTaskStepService.failStep(taskId, 1, errorMessage);
+                    
+                    // 更新任务状态为失败，进度保持在10%（数据准备阶段的进度）
+                    cubeTaskInfoService.updateTaskStatus(taskId, "failed", 10, errorMessage);
+                    System.err.println("任务停止 - 任务ID: " + taskId + ", 错误: " + errorMessage);
+                    return; // 停止执行，不继续后续步骤
+                }
+                
+                // 数据准备成功，完成第一步
+                cubeTaskStepService.completeStep(taskId, 1, "数据准备完成，检索到切片数量: " + sliceFiles.size());
+                System.out.println("数据准备完成 - 任务ID: " + taskId + ", 切片数量: " + sliceFiles.size());
+                
+                // ========== 第二步：任务拆分 ==========
+                // 开始任务拆分步骤
+                cubeTaskStepService.startStep(taskId, 2, "开始任务拆分，分析切片位置分布");
                 
                 // 完成任务拆分步骤
                 String processingCenter = (String) parameters.get("processingCenter");
@@ -172,32 +197,89 @@ public class WorkflowTaskController extends BaseController {
                 // 更新进度
                 cubeTaskInfoService.updateTaskProgress(taskId, 30);
                 
+                // 检查工作流处理器是否存在（在执行计算之前）
+                WorkflowProcessor processor = workflowProcessorManager.getProcessor(workflow);
+                if (processor == null) {
+                    // 处理器不存在，立即停止任务
+                    String errorMessage = "未找到支持的工作流处理器: " + workflow.getWorkflowId();
+                    System.err.println("工作流计算失败 - 任务ID: " + taskId);
+                    System.err.println("错误信息: " + errorMessage);
+                    
+                    // 标记步骤3为失败（算法初始化步骤）
+                    cubeTaskStepService.failStep(taskId, 3, errorMessage);
+                    
+                    // 更新任务状态为失败，进度保持在30%（任务拆分完成时的进度）
+                    cubeTaskInfoService.updateTaskStatus(taskId, "failed", 30, errorMessage);
+                    System.err.println("任务计算失败 - 任务ID: " + taskId + ", 错误: " + errorMessage);
+                    return; // 停止执行，不继续处理
+                }
+                
                 // 执行计算
                 Map<String, Object> result = workflowProcessorManager.processWorkflow(workflow, parameters, sliceFiles);
                 
-                // 更新进度
+                // 检查计算结果状态
+                String resultStatus = (String) result.get("status");
+                
+                // 如果结果是错误状态，立即停止
+                if ("error".equals(resultStatus)) {
+                    String errorMessage = (String) result.get("message");
+                    if (errorMessage == null || errorMessage.isEmpty()) {
+                        errorMessage = "工作流处理失败";
+                    }
+                    
+                    System.err.println("工作流计算失败 - 任务ID: " + taskId);
+                    System.err.println("错误信息: " + errorMessage);
+                    
+                    // 标记步骤3为失败（算法初始化步骤）
+                    cubeTaskStepService.failStep(taskId, 3, errorMessage);
+                    
+                    // 更新任务状态为失败，进度保持在30%（任务拆分完成时的进度）
+                    cubeTaskInfoService.updateTaskStatus(taskId, "failed", 30, errorMessage);
+                    System.err.println("任务计算失败 - 任务ID: " + taskId + ", 错误: " + errorMessage);
+                    return; // 停止执行，不继续处理
+                }
+                
+                // 更新进度（只有在计算成功时才更新）
                 cubeTaskInfoService.updateTaskProgress(taskId, 80);
                 
                 // 计算完成后保存结果到数据库
                 saveWorkflowResult(taskId, workflow, result, parameters);
                 
                 // 根据计算结果更新任务状态
-                if ("success".equals(result.get("status"))) {
+                if ("success".equals(resultStatus)) {
                     // 计算成功，更新任务状态为完成
                     cubeTaskInfoService.completeTask(taskId, 1, "计算结果已保存");
                     System.out.println("任务计算完成 - 任务ID: " + taskId);
                 } else {
-                    // 计算失败，更新任务状态为失败
+                    // 其他状态（如部分成功），也标记为失败
                     String errorMessage = (String) result.get("message");
-                    cubeTaskInfoService.updateTaskStatus(taskId, "failed", 100, errorMessage);
+                    if (errorMessage == null || errorMessage.isEmpty()) {
+                        errorMessage = "工作流处理失败";
+                    }
+                    
+                    // 标记步骤3为失败
+                    cubeTaskStepService.failStep(taskId, 3, errorMessage);
+                    
+                    // 更新任务状态为失败，进度保持在80%（计算完成但保存失败）
+                    cubeTaskInfoService.updateTaskStatus(taskId, "failed", 80, errorMessage);
                     System.err.println("任务计算失败 - 任务ID: " + taskId + ", 错误: " + errorMessage);
                 }
                 
             } catch (Exception e) {
                 // 记录错误并更新任务状态为失败
-                System.err.println("异步任务执行失败: " + e.getMessage());
+                String errorMessage = e.getMessage();
+                if (errorMessage == null || errorMessage.isEmpty()) {
+                    errorMessage = "任务执行异常: " + e.getClass().getSimpleName();
+                }
+                
+                System.err.println("异步任务执行失败: " + errorMessage);
                 e.printStackTrace();
-                cubeTaskInfoService.updateTaskStatus(taskId, "failed", 100, e.getMessage());
+                
+                // 标记步骤3为失败（算法初始化步骤）
+                cubeTaskStepService.failStep(taskId, 3, errorMessage);
+                
+                // 更新任务状态为失败，进度保持在30%（任务拆分完成时的进度，因为异常发生在计算阶段）
+                cubeTaskInfoService.updateTaskStatus(taskId, "failed", 30, errorMessage);
             }
         });
     }

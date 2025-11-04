@@ -22,10 +22,14 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * 立方体数据检索控制器
@@ -365,6 +369,89 @@ public class CubeRetrievalController extends BaseController {
         } catch (Exception e) {
             logger.error("获取预览图失败，路径: {}", imagePath, e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 导出立方体数据
+     * 生成包含模拟文件的ZIP压缩包
+     * 
+     * @param request 导出请求参数，包含格式、立方体ID列表等
+     * @param response HTTP响应
+     */
+    @PostMapping("/export")
+    public void exportCubeData(@RequestBody Map<String, Object> request, HttpServletResponse response) {
+        try {
+            logger.info("收到立方体数据导出请求: {}", request);
+            
+            // 获取导出参数
+            String format = (String) request.get("format"); // "hdf5" 或 "cub"
+            String imageFormat = (String) request.get("imageFormat"); // "tif" 或 "cog"（仅当format为cub时有效）
+            @SuppressWarnings("unchecked")
+            List<String> selectedResults = (List<String>) request.get("selectedResults"); // 立方体ID列表
+            
+            if (selectedResults == null || selectedResults.isEmpty()) {
+                logger.warn("导出请求中立方体ID列表为空");
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
+            
+            logger.info("导出参数 - 格式: {}, 内部影像格式: {}, 立方体数量: {}", 
+                    format, imageFormat, selectedResults.size());
+            
+            // 确定文件扩展名
+            String fileExtension = "hdf5".equalsIgnoreCase(format) ? "hdf5" : "cub";
+            
+            // 创建ZIP压缩包
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+                // 为每个选中的立方体创建一个模拟文件
+                for (String cubeId : selectedResults) {
+                    // 创建ZIP条目
+                    String fileName = cubeId + "." + fileExtension;
+                    ZipEntry entry = new ZipEntry(fileName);
+                    zos.putNextEntry(entry);
+                    
+                    // 生成模拟文件内容（这里只是示例数据）
+                    // 实际应用中，这里应该读取真实的文件内容
+                    String mockContent = "模拟立方体数据文件 - " + cubeId + "\n";
+                    mockContent += "格式: " + format.toUpperCase() + "\n";
+                    if ("cub".equalsIgnoreCase(format) && imageFormat != null) {
+                        mockContent += "内部影像格式: " + imageFormat.toUpperCase() + "\n";
+                    }
+                    mockContent += "生成时间: " + new java.util.Date() + "\n";
+                    mockContent += "这是一个模拟的" + fileExtension.toUpperCase() + "格式文件\n";
+                    mockContent += "实际使用时，这里应该是真实的立方体数据内容\n";
+                    
+                    // 写入模拟内容
+                    zos.write(mockContent.getBytes("UTF-8"));
+                    zos.closeEntry();
+                    
+                    logger.info("已添加文件到ZIP: {}", fileName);
+                }
+            }
+            
+            // 设置响应头
+            String zipFileName = "cube_export_" + System.currentTimeMillis() + ".zip";
+            response.setContentType("application/zip");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + zipFileName + "\"");
+            response.setHeader("Content-Length", String.valueOf(baos.size()));
+            
+            // 输出ZIP文件
+            response.getOutputStream().write(baos.toByteArray());
+            response.getOutputStream().flush();
+            
+            logger.info("立方体数据导出成功 - 格式: {}, 文件数量: {}, ZIP文件名: {}", 
+                    format, selectedResults.size(), zipFileName);
+            
+        } catch (Exception e) {
+            logger.error("导出立方体数据失败", e);
+            try {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().write("导出失败: " + e.getMessage());
+            } catch (IOException ioException) {
+                logger.error("写入错误响应失败", ioException);
+            }
         }
     }
 }
