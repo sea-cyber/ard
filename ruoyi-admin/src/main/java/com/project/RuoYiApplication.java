@@ -42,7 +42,7 @@ public class RuoYiApplication
      */
     private static void testGdal() {
         try {
-            System.out.println("=== GDAL 测试开始 ===");
+            System.out.println("=== GDAL 测试开 始  ===");
             
             // 初始化GDAL
             gdal.AllRegister();
