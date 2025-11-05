@@ -319,21 +319,67 @@ public class CubeRetrievalController extends BaseController {
             }
             logger.info("清理后的路径: {}", cleanPath);
             
-            // 构建完整文件路径
-            String fullPath = vizRootPath.replace('\\', '/') + "/" + cleanPath;
-            logger.info("完整文件路径: {}", fullPath);
+            // 获取预览图根目录并规范化路径
+            String normalizedRootPath = vizRootPath.replace('\\', '/');
+            if (!normalizedRootPath.endsWith("/")) {
+                normalizedRootPath += "/";
+            }
             
-            // 检查文件是否存在
-            File file = new File(fullPath);
-            if (!file.exists() || !file.isFile()) {
+            // 尝试多种路径格式
+            String[] possiblePaths = {
+                // 路径1: 直接使用传入的完整路径
+                normalizedRootPath + cleanPath,
+                // 路径2: 如果路径包含 default_user/ARD_CUB_GRIDT0_default_user_VIZ/，尝试去掉这个前缀
+                cleanPath.contains("default_user/ARD_CUB_GRIDT0_default_user_VIZ/") 
+                    ? normalizedRootPath + cleanPath.replaceFirst("default_user/ARD_CUB_GRIDT0_default_user_VIZ/", "")
+                    : null,
+                // 路径3: 如果路径包含 ARD_CUB_GRIDT0_xxx_VIZ/，尝试去掉这个前缀
+                cleanPath.matches(".*/ARD_CUB_GRIDT0_[^/]+_VIZ/.*") 
+                    ? normalizedRootPath + cleanPath.replaceFirst(".*/ARD_CUB_GRIDT0_[^/]+_VIZ/", "")
+                    : null,
+                // 路径4: 只提取最后的立方体ID和文件名部分
+                cleanPath.contains("GRID_CUBE_") 
+                    ? normalizedRootPath + cleanPath.substring(cleanPath.indexOf("GRID_CUBE_"))
+                    : null
+            };
+            
+            File file = null;
+            String fullPath = null;
+            
+            // 尝试找到存在的文件
+            for (String path : possiblePaths) {
+                if (path != null) {
+                    File testFile = new File(path);
+                    logger.debug("尝试路径: {}", path);
+                    if (testFile.exists() && testFile.isFile()) {
+                        file = testFile;
+                        fullPath = path;
+                        logger.info("找到文件，使用路径: {}", fullPath);
+                        break;
+                    }
+                }
+            }
+            
+            // 如果所有路径都找不到，记录详细错误信息
+            if (file == null || !file.exists() || !file.isFile()) {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                logger.warn("预览图文件不存在: {}", fullPath);
+                logger.warn("预览图文件不存在，已尝试以下路径:");
+                for (String path : possiblePaths) {
+                    if (path != null) {
+                        logger.warn("  - {}", path);
+                    }
+                }
+                logger.warn("原始路径: {}", imagePath);
+                logger.warn("清理后路径: {}", cleanPath);
+                logger.warn("Viz根目录: {}", normalizedRootPath);
                 return;
             }
             
+            logger.info("使用完整文件路径: {}", fullPath);
+            
             // 设置响应头 - 根据文件扩展名设置Content-Type
             response.setContentType("image/jpeg"); // 默认jpeg
-            String lowerPath = cleanPath.toLowerCase();
+            String lowerPath = fullPath.toLowerCase();
             if (lowerPath.endsWith(".png")) {
                 response.setContentType("image/png");
             } else if (lowerPath.endsWith(".gif")) {

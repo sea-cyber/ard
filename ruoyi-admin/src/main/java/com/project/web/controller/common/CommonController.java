@@ -255,16 +255,19 @@ public class CommonController
                 throw new Exception("资源路径不能为空");
             }
             
+            log.info("收到资源请求 - 原始路径: {}", resource);
+            
             // 1. 绝对路径（如 D:/... 或 D:\...），直接使用
             if (resource.matches("^[A-Za-z]:[\\\\/].*")) {
                 downloadPath = resource.replace('\\', '/');
+                log.info("识别为绝对路径，直接使用: {}", downloadPath);
             }
             // 2. 原始切片预览图路径（格式：/GRID_CUBE_xxx/文件名.jpg），从预览图根目录读取
             else if (resource.matches("^/GRID_CUBE_[^/]+/.*\\.(jpg|jpeg|png|JPG|JPEG|PNG)$")) {
                 String vizRootPath = vizConfig.getRootPath();
                 String resourcePath = resource.startsWith("/") ? resource.substring(1) : resource;
                 downloadPath = vizRootPath.replace('\\', '/') + "/" + resourcePath;
-                log.debug("原始切片预览图路径 - 预览图根目录: {}, 资源路径: {}, 完整路径: {}", 
+                log.info("识别为原始切片预览图路径 - 预览图根目录: {}, 资源路径: {}, 完整路径: {}", 
                         vizRootPath, resourcePath, downloadPath);
             }
             // 3. 用户数据路径（包含 /default_user 或用户目录模式），从用户数据根目录读取
@@ -273,7 +276,7 @@ public class CommonController
                 String userDataRootPath = userDataConfig.getDataRootPath();
                 String resourcePath = resource.startsWith("/") ? resource.substring(1) : resource;
                 downloadPath = userDataRootPath.replace('\\', '/') + "/" + resourcePath;
-                log.debug("用户数据路径 - 用户数据根目录: {}, 资源路径: {}, 完整路径: {}", 
+                log.info("识别为用户数据路径 - 用户数据根目录: {}, 资源路径: {}, 完整路径: {}", 
                         userDataRootPath, resourcePath, downloadPath);
             }
             // 4. 其他情况，使用默认的 profile 路径

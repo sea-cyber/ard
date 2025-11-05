@@ -632,12 +632,12 @@ public class DataImportController extends BaseController {
             slice1.setBrowseImagePath("GRID_CUBE_T0_J49E017017/GRID_CUBE_T0_J49E017017_slice_q1.jpg");
             slice1.setBrowseFileName("GRID_CUBE_T0_J49E017017_browse_q1.jpg");
             slice1.setBrowseFormat("jpg");
-            slice1.setImagingTime(OffsetDateTime.of(LocalDateTime.of(2025, 2, 15, 10, 30, 0), ZoneOffset.of("+08:00")));
+            slice1.setImagingTime(OffsetDateTime.of(LocalDateTime.of(2025, 10, 2, 14, 54, 40), ZoneOffset.of("+08:00")));
             slice1.setLocation("黑龙江");
             slice1.setSliceDesc("2025年Q1 N51E16区域立方体切片，含7个波段数据及可视化浏览图");
             slice1.setResolution("10m×10m");
-            slice1.setCreated(OffsetDateTime.of(LocalDateTime.of(2025, 10, 19, 14, 49, 47, 226751000), ZoneOffset.of("+08:00")));
-            slice1.setUpdated(OffsetDateTime.of(LocalDateTime.of(2025, 10, 19, 14, 49, 47, 226751000), ZoneOffset.of("+08:00")));
+            slice1.setCreated(OffsetDateTime.now(ZoneOffset.of("+08:00")));
+            slice1.setUpdated(OffsetDateTime.now(ZoneOffset.of("+08:00")));
             slice1.setCreatedBy(createdBy != null ? createdBy : "system_user");
             
             // 打印第一条数据的所有字段
@@ -683,12 +683,12 @@ public class DataImportController extends BaseController {
             slice2.setBrowseImagePath("GRID_CUBE_T0_J49E017017/GRID_CUBE_T0_J49E017017_slice_q1.sat.png");
             slice2.setBrowseFileName("GRID_CUBE_T0_J49E017017_browse_q1.jpg");
             slice2.setBrowseFormat("png");
-            slice2.setImagingTime(OffsetDateTime.of(LocalDateTime.of(2025, 2, 15, 10, 30, 0), ZoneOffset.of("+08:00")));
+            slice2.setImagingTime(OffsetDateTime.of(LocalDateTime.of(2025, 10, 2, 14, 54, 40), ZoneOffset.of("+08:00")));
             slice2.setLocation("黑龙江");
             slice2.setSliceDesc("第一季度原始数据载荷描述文件");
             slice2.setResolution("2798, 2336");
-            slice2.setCreated(OffsetDateTime.of(LocalDateTime.of(2025, 10, 31, 15, 47, 28, 386226000), ZoneOffset.of("+08:00")));
-            slice2.setUpdated(OffsetDateTime.of(LocalDateTime.of(2025, 10, 31, 15, 47, 28, 386226000), ZoneOffset.of("+08:00")));
+            slice2.setCreated(OffsetDateTime.now(ZoneOffset.of("+08:00")));
+            slice2.setUpdated(OffsetDateTime.now(ZoneOffset.of("+08:00")));
             slice2.setCreatedBy(createdBy != null ? createdBy : "system_user");
             
             // 打印第二条数据的所有字段
