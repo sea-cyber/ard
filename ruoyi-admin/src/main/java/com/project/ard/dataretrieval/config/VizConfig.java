@@ -15,8 +15,9 @@ public class VizConfig {
     
     /**
      * 预览图根存储目录
+     * 从配置文件 ard.viz.root-path 读取
      */
-    private String rootPath = "D:/GISER/ard/development/cubedata/ARD_CUB_GRIDT0_VIZ";
+    private String rootPath;
     
     public String getRootPath() {
         return rootPath;

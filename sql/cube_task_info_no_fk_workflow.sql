@@ -86,3 +86,4 @@ CREATE INDEX IF NOT EXISTS idx_task_workflow
     (workflow_id COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
 
+

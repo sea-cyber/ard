@@ -15,8 +15,9 @@ public class UserDataConfig {
     
     /**
      * 用户数据根目录
+     * 从配置文件 ard.user.data-root-path 读取
      */
-    private String dataRootPath = "D:/GISER/ard/development/userdata";
+    private String dataRootPath;
     
     public String getDataRootPath() {
         return dataRootPath;

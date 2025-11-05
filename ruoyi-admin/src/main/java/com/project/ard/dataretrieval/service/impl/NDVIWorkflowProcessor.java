@@ -8,6 +8,7 @@ import com.project.ard.dataretrieval.config.UserDataConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -44,6 +45,9 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
     
     @Autowired
     private CubeMapper cubeMapper;
+    
+    @Value("${ard.cube.root-path}")
+    private String cubeRootPath;
     
     @Override
     public String getSupportedWorkflowType() {
@@ -122,9 +126,14 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
                     
                     if (cubeId != null && quarter != null) {
                         // 构建波段文件路径 - 使用配置的原始数据路径：ARD_CUB_GRIDT0_OFF_RAW/grid_id/quarter
-                        String basePath = "D:\\GISER\\ard\\development\\cubedata\\ARD_CUB_GRIDT0_OFF_RAW";
-                        String redBandFile = basePath + "\\" + cubeId + "\\" + quarter + "\\" + cubeId + "_" + quarter + "_B4.TIF";
-                        String nirBandFile = basePath + "\\" + cubeId + "\\" + quarter + "\\" + cubeId + "_" + quarter + "_B5.TIF";
+                        // 使用 Paths 来正确处理路径，自动适配不同操作系统的路径分隔符
+                        java.nio.file.Path basePath = java.nio.file.Paths.get(cubeRootPath);
+                        java.nio.file.Path redBandPath = basePath.resolve(cubeId).resolve(quarter)
+                                .resolve(cubeId + "_" + quarter + "_B4.TIF");
+                        java.nio.file.Path nirBandPath = basePath.resolve(cubeId).resolve(quarter)
+                                .resolve(cubeId + "_" + quarter + "_B5.TIF");
+                        String redBandFile = redBandPath.toString();
+                        String nirBandFile = nirBandPath.toString();
                         
                         logger.info("红光波段文件: {}", redBandFile);
                         logger.info("近红外波段文件: {}", nirBandFile);

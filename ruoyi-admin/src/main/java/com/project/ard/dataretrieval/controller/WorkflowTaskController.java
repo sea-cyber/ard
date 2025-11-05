@@ -7,6 +7,7 @@ import com.project.ard.dataretrieval.service.WorkflowProcessor;
 import com.project.common.core.controller.BaseController;
 import com.project.common.core.domain.AjaxResult;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
@@ -31,6 +32,9 @@ public class WorkflowTaskController extends BaseController {
     
     @Autowired
     private WorkflowProcessorManager workflowProcessorManager;
+    
+    @Value("${ard.cube.root-path}")
+    private String cubeRootPath;
     
     /**
      * 处理工作流任务
@@ -402,17 +406,23 @@ public class WorkflowTaskController extends BaseController {
                     continue;
                 }
                 
-                // 构建绝对目录路径: D:\GISER\ard\development\cubedata\ARD_CUB_GRIDT0_OFF_RAW\cube_id\quarter\
-                String basePath = "D:\\GISER\\ard\\development\\cubedata\\ARD_CUB_GRIDT0_OFF_RAW";
-                String directoryPath = basePath + "\\" + targetCubeId + "\\" + targetQuarter + "\\";
+                // 构建绝对目录路径: 使用配置文件中的路径
+                // 使用 Paths 来正确处理路径，自动适配不同操作系统的路径分隔符
+                Path basePath = Paths.get(cubeRootPath);
+                Path directoryPathObj = basePath.resolve(targetCubeId).resolve(targetQuarter);
                 
                 System.out.println("处理切片: " + sliceFileName + ", 立方体ID: " + targetCubeId + ", 季度: " + targetQuarter);
+                System.out.println("使用配置的根路径: " + cubeRootPath);
+                System.out.println("构建的目录路径: " + directoryPathObj.toString());
                 
                 // 根据切片标识符和季度信息，构建正确的波段文件名
                 if (sliceFileName != null && !sliceFileName.isEmpty()) {
                     // 构建红光波段和近红外波段文件名
-                    String redBandFile = directoryPath + targetCubeId + "_" + targetQuarter + "_B4.TIF";
-                    String nirBandFile = directoryPath + targetCubeId + "_" + targetQuarter + "_B5.TIF";
+                    String fileNamePrefix = targetCubeId + "_" + targetQuarter;
+                    Path redBandPath = directoryPathObj.resolve(fileNamePrefix + "_B4.TIF");
+                    Path nirBandPath = directoryPathObj.resolve(fileNamePrefix + "_B5.TIF");
+                    String redBandFile = redBandPath.toString();
+                    String nirBandFile = nirBandPath.toString();
                     
                     // 检查波段文件是否存在
                     File redFile = new File(redBandFile);
