@@ -31,6 +31,9 @@ public class UserDataConfig {
      * 保存分析结果的tif：用户数据根目录/username/ARD_CUB_GRIDT0_username_RAW/grid_id/analysis_type
      */
     public String buildUserAnalysisPath(String username, String gridId, String analysisType) {
+        if (dataRootPath == null || dataRootPath.isEmpty()) {
+            throw new IllegalStateException("用户数据根目录配置为空，请检查 application.yml 中的 ard.user.data-root-path 配置");
+        }
         String userCubeName = "ARD_CUB_GRIDT0_" + username + "_RAW";
         return dataRootPath + "/" + username + "/" + userCubeName + "/" + gridId + "/" + analysisType;
     }
@@ -43,6 +46,9 @@ public class UserDataConfig {
      * @return 用户目录路径
      */
     public String buildUserCubePath(String username) {
+        if (dataRootPath == null || dataRootPath.isEmpty()) {
+            throw new IllegalStateException("用户数据根目录配置为空，请检查 application.yml 中的 ard.user.data-root-path 配置");
+        }
         String userCubeName = "ARD_CUB_GRIDT0_" + username + "_RAW";
         return dataRootPath + "/" + username + "/" + userCubeName;
     }
@@ -51,6 +57,9 @@ public class UserDataConfig {
      * 预览图/浏览图片：用户数据根目录/username/ARD_CUB_GRIDT0_username_VIZ/grid_id/
      */
     public String buildUserVizPath(String username, String gridId) {
+        if (dataRootPath == null || dataRootPath.isEmpty()) {
+            throw new IllegalStateException("用户数据根目录配置为空，请检查 application.yml 中的 ard.user.data-root-path 配置");
+        }
         String userCubeName = "ARD_CUB_GRIDT0_" + username + "_VIZ";
         return dataRootPath + "/" + username + "/" + userCubeName + "/" + gridId;
     }

@@ -93,10 +93,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		 where r.role_key=#{roleKey} and r.del_flag = '0' limit 1
 	</select>
 	
- 	<insert id="insertRole" parameterType="SysRole" useGeneratedKeys="true" keyProperty="roleId">
+ 	<insert id="insertRole" parameterType="SysRole" useGeneratedKeys="true" keyProperty="roleId" keyColumn="role_id">
  		insert into sys_role(
- 			<if test="roleId != null and roleId != 0">role_id,</if>
- 			<if test="roleName != null and roleName != ''">role_name,</if>
+ 			role_name,
  			<if test="roleKey != null and roleKey != ''">role_key,</if>
  			<if test="roleSort != null">role_sort,</if>
  			<if test="dataScope != null and dataScope != ''">data_scope,</if>
@@ -107,34 +106,34 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
  			<if test="createBy != null and createBy != ''">create_by,</if>
  			create_time
  		)values(
- 			<if test="roleId != null and roleId != 0">#{roleId},</if>
- 			<if test="roleName != null and roleName != ''">#{roleName},</if>
+ 			#{roleName},
  			<if test="roleKey != null and roleKey != ''">#{roleKey},</if>
  			<if test="roleSort != null">#{roleSort},</if>
  			<if test="dataScope != null and dataScope != ''">#{dataScope},</if>
- 			<if test="menuCheckStrictly != null">#{menuCheckStrictly},</if>
- 			<if test="deptCheckStrictly != null">#{deptCheckStrictly},</if>
+			<if test="menuCheckStrictly != null">CASE WHEN #{menuCheckStrictly} THEN 1 ELSE 0 END,</if>
+			<if test="deptCheckStrictly != null">CASE WHEN #{deptCheckStrictly} THEN 1 ELSE 0 END,</if>
  			<if test="status != null and status != ''">#{status},</if>
  			<if test="remark != null and remark != ''">#{remark},</if>
  			<if test="createBy != null and createBy != ''">#{createBy},</if>
  			now()
  		)
+		RETURNING role_id
 	</insert>
 	
 	<update id="updateRole" parameterType="SysRole">
  		update sys_role
- 		<set>
- 			<if test="roleName != null and roleName != ''">role_name = #{roleName},</if>
- 			<if test="roleKey != null and roleKey != ''">role_key = #{roleKey},</if>
- 			<if test="roleSort != null">role_sort = #{roleSort},</if>
- 			<if test="dataScope != null and dataScope != ''">data_scope = #{dataScope},</if>
- 			<if test="menuCheckStrictly != null">menu_check_strictly = #{menuCheckStrictly},</if>
- 			<if test="deptCheckStrictly != null">dept_check_strictly = #{deptCheckStrictly},</if>
- 			<if test="status != null and status != ''">status = #{status},</if>
- 			<if test="remark != null">remark = #{remark},</if>
- 			<if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
- 			update_time = now()
- 		</set>
+		<set>
+			<if test="roleName != null and roleName != ''">role_name = #{roleName},</if>
+			<if test="roleKey != null and roleKey != ''">role_key = #{roleKey},</if>
+			<if test="roleSort != null">role_sort = #{roleSort},</if>
+			<if test="dataScope != null and dataScope != ''">data_scope = #{dataScope},</if>
+			<if test="menuCheckStrictly != null">menu_check_strictly = CASE WHEN #{menuCheckStrictly} THEN 1 ELSE 0 END,</if>
+			<if test="deptCheckStrictly != null">dept_check_strictly = CASE WHEN #{deptCheckStrictly} THEN 1 ELSE 0 END,</if>
+			<if test="status != null and status != ''">status = #{status},</if>
+			<if test="remark != null">remark = #{remark},</if>
+			<if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+			update_time = now()
+		</set>
  		where role_id = #{roleId}
 	</update>
 	

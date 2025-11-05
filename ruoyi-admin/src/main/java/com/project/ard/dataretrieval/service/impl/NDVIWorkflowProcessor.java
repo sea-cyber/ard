@@ -921,6 +921,14 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
             String dataRootPath = userDataConfig.getDataRootPath();
             logger.info("用户数据根目录: {}", dataRootPath);
             
+            // 检查配置是否为空
+            if (dataRootPath == null || dataRootPath.isEmpty()) {
+                logger.error("用户数据根目录配置为空，请检查 application.yml 中的 ard.user.data-root-path 配置");
+                // 返回绝对路径作为fallback
+                String normalizedJpgPath = jpgPath.replace("\\", "/");
+                return normalizedJpgPath;
+            }
+            
             // 标准化路径分隔符
             String normalizedDataRootPath = dataRootPath.replace("\\", "/");
             String normalizedJpgPath = jpgPath.replace("\\", "/");

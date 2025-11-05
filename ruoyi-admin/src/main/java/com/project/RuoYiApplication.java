@@ -4,10 +4,11 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import com.project.ard.dataretrieval.config.UserDataConfig;
+import com.project.ard.dataretrieval.config.VizConfig;
 
-import org.gdal.gdal.Dataset;
 import org.gdal.gdal.gdal;
-import org.gdal.gdalconst.gdalconstConstants;
 
 /**
  * 启动程序
@@ -16,6 +17,7 @@ import org.gdal.gdalconst.gdalconstConstants;
  */
 @SpringBootApplication(exclude = { DataSourceAutoConfiguration.class })
 @MapperScan("com.project.**.mapper")
+@EnableConfigurationProperties({UserDataConfig.class, VizConfig.class})
 public class RuoYiApplication
 {
     public static void main(String[] args)
