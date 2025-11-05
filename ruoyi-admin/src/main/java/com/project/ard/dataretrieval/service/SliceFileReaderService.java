@@ -18,8 +18,33 @@ public class SliceFileReaderService {
     
     static {
         // 初始化GDAL
-        // 注意：PROJ数据库警告不影响计算结果的正确性
-        gdal.AllRegister();
+        // 设置GDAL配置选项，抑制PROJ警告并处理EPSG不一致问题
+        try {
+            // 设置GTIFF_SRS_SOURCE为EPSG，使用官方EPSG参数覆盖GeoTIFF keys
+            // 这样可以避免EPSG定义不一致的警告
+            gdal.SetConfigOption("GTIFF_SRS_SOURCE", "EPSG");
+            
+            // 如果PROJ_LIB环境变量未设置，尝试设置（如果已知proj.db位置）
+            // 注意：这需要根据实际部署环境调整
+            String projLib = System.getenv("PROJ_LIB");
+            if (projLib == null || projLib.isEmpty()) {
+                // 可以在这里设置proj.db的路径，例如：
+                // gdal.SetConfigOption("PROJ_LIB", "/path/to/proj/lib");
+                // 但为了兼容性，暂时不强制设置，让系统自动查找
+            }
+            
+            // 抑制PROJ警告（如果可能）
+            gdal.SetConfigOption("CPL_LOG", "OFF");
+            
+            // 初始化GDAL
+            gdal.AllRegister();
+            
+            System.out.println("✓ GDAL初始化完成，已设置GTIFF_SRS_SOURCE=EPSG");
+        } catch (Exception e) {
+            System.err.println("✗ GDAL配置设置失败: " + e.getMessage());
+            // 即使配置失败，也尝试初始化GDAL
+            gdal.AllRegister();
+        }
     }
     
     /**
@@ -42,8 +67,14 @@ public class SliceFileReaderService {
             // 使用GDAL打开文件
             Dataset dataset = gdal.Open(filePath, gdalconstConstants.GA_ReadOnly);
             if (dataset == null) {
+                String errorMsg = gdal.GetLastErrorMsg();
                 fileInfo.put("status", "error");
-                fileInfo.put("message", "无法打开文件: " + filePath);
+                fileInfo.put("message", "无法打开文件: " + filePath + 
+                    (errorMsg != null && !errorMsg.isEmpty() ? "，错误: " + errorMsg : ""));
+                System.err.println("✗ GDAL无法打开文件: " + filePath);
+                if (errorMsg != null && !errorMsg.isEmpty()) {
+                    System.err.println("  GDAL错误信息: " + errorMsg);
+                }
                 return fileInfo;
             }
             
@@ -108,10 +139,32 @@ public class SliceFileReaderService {
         Map<String, Object> bandData = new HashMap<>();
         
         try {
+            // 检查文件是否存在
+            File file = new File(filePath);
+            if (!file.exists()) {
+                bandData.put("status", "error");
+                bandData.put("message", "文件不存在: " + filePath);
+                System.err.println("✗ 文件不存在: " + filePath);
+                return bandData;
+            }
+            
+            if (!file.canRead()) {
+                bandData.put("status", "error");
+                bandData.put("message", "文件不可读: " + filePath);
+                System.err.println("✗ 文件不可读: " + filePath);
+                return bandData;
+            }
+            
             Dataset dataset = gdal.Open(filePath, gdalconstConstants.GA_ReadOnly);
             if (dataset == null) {
+                String errorMsg = gdal.GetLastErrorMsg();
                 bandData.put("status", "error");
-                bandData.put("message", "无法打开文件: " + filePath);
+                bandData.put("message", "无法打开文件: " + filePath + 
+                    (errorMsg != null && !errorMsg.isEmpty() ? "，错误: " + errorMsg : ""));
+                System.err.println("✗ GDAL无法打开文件: " + filePath);
+                if (errorMsg != null && !errorMsg.isEmpty()) {
+                    System.err.println("  GDAL错误信息: " + errorMsg);
+                }
                 return bandData;
             }
             

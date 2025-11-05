@@ -609,6 +609,8 @@ public class NDVIWorkflowProcessor implements WorkflowProcessor {
      */
     private void saveNDVITiffWithGDAL(double[] ndviData, int width, int height, double[] geotransform, String projection, String outputPath) {
         try {
+            // 设置GDAL配置选项，确保与初始化时一致
+            org.gdal.gdal.gdal.SetConfigOption("GTIFF_SRS_SOURCE", "EPSG");
             // 使用GDAL保存包含地理空间信息的TIFF文件
             org.gdal.gdal.gdal.AllRegister();
             
